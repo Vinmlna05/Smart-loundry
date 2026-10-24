@@ -1,0 +1,1300 @@
+/* =====================================
+   HALAMAN DETAIL PESANAN DAN NOTA
+===================================== */
+
+.cleanora-detail-page .detail-hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        110deg,
+        #f1f9fa 0%,
+        #f8fcfc 65%,
+        #e5f4f5 100%
+    );
+}
+
+.cleanora-detail-page .detail-hero-content {
+    position: relative;
+    padding-top: 42px;
+    padding-bottom: 64px;
+}
+
+.cleanora-detail-page .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 30px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-detail-page .breadcrumb a {
+    color: var(--teal);
+}
+
+.cleanora-detail-page .breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.cleanora-detail-page .detail-hero h1 {
+    margin-bottom: 15px;
+    font-size: clamp(36px, 4.6vw, 51px);
+}
+
+.cleanora-detail-page .detail-hero-content > p {
+    max-width: 520px;
+    font-size: 11.5px;
+    line-height: 1.9;
+}
+
+.cleanora-detail-page .detail-order-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    max-width: 640px;
+    margin-top: 26px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.cleanora-detail-page .detail-order-strip > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cleanora-detail-page .detail-order-strip > div:first-child > span {
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .detail-order-strip strong {
+    color: var(--text);
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.cleanora-detail-page .detail-order-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.cleanora-detail-page .detail-hero-decoration {
+    position: absolute;
+    right: 6%;
+    bottom: -18px;
+    color: rgba(7, 139, 155, 0.08);
+    font-family: var(--font-heading);
+    font-size: 170px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* =====================================
+   LAYOUT
+===================================== */
+
+.cleanora-detail-page .detail-section {
+    padding: 40px 0 90px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-detail-page .detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.75fr);
+    align-items: start;
+    gap: 26px;
+}
+
+.cleanora-detail-page .detail-main {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+
+.cleanora-detail-page .detail-aside {
+    position: sticky;
+    top: 100px;
+    display: grid;
+    gap: 16px;
+}
+
+.cleanora-detail-page .detail-card {
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: #ffffff;
+}
+
+/* =====================================
+   BADGE
+===================================== */
+
+.cleanora-detail-page .detail-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cleanora-detail-page .detail-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.cleanora-detail-page .detail-badge--primary {
+    color: var(--teal-dark);
+    background: var(--aqua);
+}
+
+.cleanora-detail-page .detail-badge--success {
+    color: #227654;
+    background: #e9f7f0;
+}
+
+.cleanora-detail-page .detail-badge--warning {
+    color: #8a6a1f;
+    background: #fdf3dd;
+}
+
+.cleanora-detail-page .detail-badge--danger {
+    color: #a33e3e;
+    background: #fdf0f0;
+}
+
+/* =====================================
+   RINGKASAN STATUS
+===================================== */
+
+.cleanora-detail-page .overview-card {
+    padding: 24px 26px;
+}
+
+.cleanora-detail-page .overview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-detail-page .overview-head h2 {
+    font-size: clamp(25px, 3vw, 31px);
+}
+
+.cleanora-detail-page .overview-head p {
+    max-width: 520px;
+    margin-top: 6px;
+    font-size: 10.5px;
+    line-height: 1.8;
+}
+
+.cleanora-detail-page .overview-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.cleanora-detail-page .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 22px;
+    margin-top: 18px;
+}
+
+.cleanora-detail-page .overview-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.cleanora-detail-page .overview-item > span {
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .overview-item > strong {
+    font-size: 11.5px;
+}
+
+.cleanora-detail-page .overview-item > small {
+    color: var(--muted);
+    font-size: 9.5px;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .overview-cta {
+    margin-top: 20px;
+}
+
+/* =====================================
+   NOTA
+===================================== */
+
+.cleanora-detail-page .invoice-card {
+    overflow: hidden;
+}
+
+.cleanora-detail-page .invoice-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 15px 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-detail-page .invoice-toolbar .section-label {
+    margin-bottom: 0;
+}
+
+.cleanora-detail-page .invoice-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border: 1px solid #b8d9de;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--teal-dark);
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cleanora-detail-page .invoice-print:hover {
+    border-color: var(--teal);
+    background: var(--aqua);
+}
+
+.cleanora-detail-page .invoice-sheet {
+    padding: 26px;
+}
+
+.cleanora-detail-page .invoice-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-detail-page .invoice-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.cleanora-detail-page .invoice-brand-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--aqua);
+    color: var(--teal);
+    font-size: 19px;
+}
+
+.cleanora-detail-page .invoice-brand strong {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.cleanora-detail-page .invoice-brand small {
+    display: block;
+    margin-top: -2px;
+    color: var(--muted);
+    font-size: 8.5px;
+    letter-spacing: 1.7px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .invoice-meta {
+    text-align: right;
+}
+
+.cleanora-detail-page .invoice-meta > span {
+    display: block;
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .invoice-meta > strong {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--font-heading);
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.cleanora-detail-page .invoice-meta > small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.cleanora-detail-page .invoice-parties {
+    display: grid;
+    grid-template-columns: 1.1fr 1.3fr 0.9fr;
+    gap: 18px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-detail-page .invoice-party {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.cleanora-detail-page .invoice-party > span {
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .invoice-party > strong {
+    font-size: 11px;
+}
+
+.cleanora-detail-page .invoice-party > small {
+    color: var(--muted);
+    font-size: 9.5px;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .invoice-party .detail-badge {
+    align-self: flex-start;
+    margin: 3px 0 2px;
+}
+
+.cleanora-detail-page .invoice-table-wrap {
+    margin-top: 4px;
+    overflow-x: auto;
+}
+
+.cleanora-detail-page .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+}
+
+.cleanora-detail-page .invoice-table th {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .invoice-table th:not(:first-child),
+.cleanora-detail-page .invoice-table td:not(:first-child) {
+    text-align: right;
+}
+
+.cleanora-detail-page .invoice-table th:first-child,
+.cleanora-detail-page .invoice-table td:first-child {
+    padding-left: 0;
+}
+
+.cleanora-detail-page .invoice-table th:last-child,
+.cleanora-detail-page .invoice-table td:last-child {
+    padding-right: 0;
+}
+
+.cleanora-detail-page .invoice-table td {
+    padding: 13px 8px;
+    border-bottom: 1px solid #eef4f5;
+    vertical-align: top;
+}
+
+.cleanora-detail-page .invoice-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.cleanora-detail-page .invoice-item-name strong {
+    display: block;
+    font-size: 11px;
+}
+
+.cleanora-detail-page .invoice-item-name small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.cleanora-detail-page .invoice-table td:last-child strong {
+    font-weight: 600;
+}
+
+.cleanora-detail-page .invoice-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+    gap: 24px;
+    padding-top: 18px;
+}
+
+.cleanora-detail-page .invoice-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    align-self: start;
+    padding: 13px;
+    border-radius: 9px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-detail-page .invoice-note-icon {
+    flex-shrink: 0;
+    color: var(--teal);
+    font-size: 14px;
+}
+
+.cleanora-detail-page .invoice-note strong {
+    display: block;
+    font-size: 9.5px;
+}
+
+.cleanora-detail-page .invoice-note p {
+    margin-top: 3px;
+    font-size: 9.5px;
+    line-height: 1.7;
+}
+
+.cleanora-detail-page .invoice-totals {
+    display: grid;
+    gap: 8px;
+}
+
+.cleanora-detail-page .invoice-total-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 10.5px;
+}
+
+.cleanora-detail-page .invoice-total-row > span:first-child {
+    color: var(--muted);
+}
+
+.cleanora-detail-page .invoice-total-row > strong {
+    font-weight: 600;
+}
+
+.cleanora-detail-page .invoice-grand {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.cleanora-detail-page .invoice-grand > span:first-child {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.cleanora-detail-page .invoice-grand > strong {
+    color: var(--teal-dark);
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.cleanora-detail-page .invoice-estimate {
+    color: var(--muted);
+    font-size: 9.5px;
+}
+
+.cleanora-detail-page .invoice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+}
+
+.cleanora-detail-page .invoice-footer p {
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .invoice-footer span {
+    color: var(--teal);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* =====================================
+   PEMBAYARAN
+===================================== */
+
+.cleanora-detail-page .payment-card {
+    padding: 22px;
+    scroll-margin-top: 100px;
+}
+
+.cleanora-detail-page .payment-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.cleanora-detail-page .payment-head .section-label {
+    margin-bottom: 0;
+}
+
+.cleanora-detail-page .payment-card h2 {
+    margin-top: 12px;
+    font-size: 24px;
+}
+
+.cleanora-detail-page .payment-card > p {
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.8;
+}
+
+.cleanora-detail-page .payment-amount {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-detail-page .payment-amount > span {
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .payment-amount > strong {
+    display: block;
+    margin-top: 3px;
+    color: var(--teal-dark);
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.cleanora-detail-page .payment-amount > small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .bank-box {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.cleanora-detail-page .bank-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.cleanora-detail-page .bank-head > span:first-child {
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .bank-badge {
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--aqua);
+    color: var(--teal-dark);
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.cleanora-detail-page .bank-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 9px;
+}
+
+.cleanora-detail-page .bank-row strong {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.cleanora-detail-page .bank-row small {
+    display: block;
+    margin-top: 1px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.cleanora-detail-page .bank-copy {
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border: 1px solid #b8d9de;
+    border-radius: 7px;
+    background: #ffffff;
+    color: var(--teal-dark);
+    font-family: var(--font-body);
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cleanora-detail-page .bank-copy:hover {
+    border-color: var(--teal);
+    background: var(--aqua);
+}
+
+.cleanora-detail-page .bank-note {
+    display: block;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 8.5px;
+}
+
+.cleanora-detail-page .bank-copy-status {
+    display: block;
+    margin-top: 5px;
+    color: var(--teal-dark);
+    font-size: 9px;
+}
+
+.cleanora-detail-page .payment-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0 12px;
+    color: var(--muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cleanora-detail-page .payment-divider::before,
+.cleanora-detail-page .payment-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.cleanora-detail-page .upload-title {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.cleanora-detail-page .upload-zone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 130px;
+    padding: 18px;
+    border: 1px dashed #b8d9de;
+    border-radius: 10px;
+    background: var(--aqua-soft);
+    text-align: center;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cleanora-detail-page .upload-zone:hover,
+.cleanora-detail-page .upload-zone.is-dragging {
+    border-color: var(--teal);
+    background: var(--aqua);
+}
+
+.cleanora-detail-page .upload-zone:focus-within {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(7, 139, 155, 0.12);
+}
+
+.cleanora-detail-page .upload-zone.has-file {
+    align-items: stretch;
+    background: #ffffff;
+    text-align: left;
+}
+
+.cleanora-detail-page .upload-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.cleanora-detail-page .upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.cleanora-detail-page .upload-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: #ffffff;
+    color: var(--teal);
+    font-size: 18px;
+}
+
+.cleanora-detail-page .upload-placeholder strong {
+    margin-top: 4px;
+    font-size: 10px;
+}
+
+.cleanora-detail-page .upload-placeholder small {
+    color: var(--muted);
+    font-size: 8.5px;
+}
+
+.cleanora-detail-page .upload-selected {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.cleanora-detail-page .upload-selected img {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    object-fit: cover;
+}
+
+.cleanora-detail-page .upload-file-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: #fdf0f0;
+    color: #a33e3e;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.cleanora-detail-page .upload-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.cleanora-detail-page .upload-file-info strong {
+    display: block;
+    overflow: hidden;
+    font-size: 9.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cleanora-detail-page .upload-file-info small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 8.5px;
+}
+
+.cleanora-detail-page .upload-remove {
+    flex-shrink: 0;
+    padding: 5px 7px;
+    border: 0;
+    background: transparent;
+    color: #a33e3e;
+    font-family: var(--font-body);
+    font-size: 8.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cleanora-detail-page .upload-remove:hover {
+    text-decoration: underline;
+}
+
+.cleanora-detail-page .upload-error {
+    margin-top: 8px;
+    color: #a33e3e;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .payment-submit {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.cleanora-detail-page .upload-note {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 8.5px;
+    line-height: 1.6;
+}
+
+.cleanora-detail-page .upload-success {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #b9e2cd;
+    border-radius: 10px;
+    background: #f2fbf6;
+}
+
+.cleanora-detail-page .upload-success-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #d9f2e4;
+    color: #227654;
+    font-size: 12px;
+}
+
+.cleanora-detail-page .upload-success strong {
+    display: block;
+    font-size: 10px;
+}
+
+.cleanora-detail-page .upload-success p {
+    margin-top: 3px;
+    font-size: 9px;
+    line-height: 1.7;
+}
+
+.cleanora-detail-page .upload-replace {
+    margin-top: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--teal-dark);
+    font-family: var(--font-body);
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cleanora-detail-page .upload-replace:hover {
+    text-decoration: underline;
+}
+
+/* =====================================
+   AKSI CEPAT
+===================================== */
+
+.cleanora-detail-page .actions-card {
+    padding: 20px;
+}
+
+.cleanora-detail-page .actions-card h2 {
+    margin-top: 8px;
+    font-size: 21px;
+}
+
+.cleanora-detail-page .detail-action-list {
+    display: grid;
+    gap: 9px;
+    margin-top: 14px;
+}
+
+.cleanora-detail-page .detail-action-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--teal-dark);
+    font-size: 10px;
+    font-weight: 600;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cleanora-detail-page .detail-action-item:hover {
+    border-color: var(--teal);
+    background: var(--aqua);
+}
+
+.cleanora-detail-page .detail-action-item span:last-child {
+    color: var(--muted);
+    font-weight: 400;
+}
+
+/* =====================================
+   PESANAN TIDAK DITEMUKAN
+===================================== */
+
+.cleanora-detail-page .detail-missing {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 50px 30px;
+    text-align: center;
+}
+
+.cleanora-detail-page .detail-missing-icon {
+    width: 58px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: #fdf3dd;
+    color: #a07824;
+    font-family: var(--font-heading);
+    font-size: 24px;
+}
+
+.cleanora-detail-page .detail-missing h2 {
+    margin-bottom: 8px;
+    font-size: 27px;
+}
+
+.cleanora-detail-page .detail-missing p {
+    max-width: 440px;
+    margin: 0 auto;
+    font-size: 10.5px;
+    line-height: 1.8;
+}
+
+.cleanora-detail-page .detail-missing p strong {
+    color: var(--text);
+}
+
+.cleanora-detail-page .detail-missing-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 20px;
+}
+
+/* =====================================
+   TABLET
+===================================== */
+
+@media (max-width: 1000px) {
+    .cleanora-detail-page .detail-layout {
+        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+        gap: 20px;
+    }
+
+    .cleanora-detail-page .invoice-sheet {
+        padding: 22px;
+    }
+
+    .cleanora-detail-page .invoice-parties {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .cleanora-detail-page .invoice-party:last-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 850px) {
+    .cleanora-detail-page .detail-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cleanora-detail-page .detail-aside {
+        position: static;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+        align-items: start;
+    }
+}
+
+/* =====================================
+   MOBILE
+===================================== */
+
+@media (max-width: 700px) {
+    .cleanora-detail-page .detail-hero-content {
+        padding-top: 32px;
+        padding-bottom: 46px;
+    }
+
+    .cleanora-detail-page .detail-hero h1 {
+        font-size: clamp(32px, 8.5vw, 41px);
+    }
+
+    .cleanora-detail-page .detail-order-strip {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cleanora-detail-page .detail-order-badges {
+        justify-content: flex-start;
+    }
+
+    .cleanora-detail-page .detail-section {
+        padding: 30px 0 66px;
+    }
+
+    .cleanora-detail-page .overview-card {
+        padding: 20px;
+    }
+
+    .cleanora-detail-page .overview-head {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .cleanora-detail-page .overview-badges {
+        justify-content: flex-start;
+    }
+
+    .cleanora-detail-page .overview-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cleanora-detail-page .overview-cta {
+        width: 100%;
+    }
+
+    .cleanora-detail-page .invoice-toolbar {
+        padding: 13px 18px;
+    }
+
+    .cleanora-detail-page .invoice-sheet {
+        padding: 18px;
+    }
+
+    .cleanora-detail-page .invoice-head {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .cleanora-detail-page .invoice-meta {
+        text-align: left;
+    }
+
+    .cleanora-detail-page .invoice-parties {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+    }
+
+    .cleanora-detail-page .invoice-party:last-child {
+        grid-column: auto;
+    }
+
+    .cleanora-detail-page .invoice-bottom {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .cleanora-detail-page .invoice-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .cleanora-detail-page .detail-aside {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cleanora-detail-page .payment-card,
+    .cleanora-detail-page .actions-card {
+        padding: 19px;
+    }
+
+    .cleanora-detail-page .detail-missing {
+        padding: 36px 20px;
+    }
+
+    .cleanora-detail-page .detail-missing h2 {
+        font-size: 24px;
+    }
+
+    .cleanora-detail-page .detail-missing-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 620px) {
+    .cleanora-detail-page .invoice-table thead {
+        display: none;
+    }
+
+    .cleanora-detail-page .invoice-table,
+    .cleanora-detail-page .invoice-table tbody,
+    .cleanora-detail-page .invoice-table tr,
+    .cleanora-detail-page .invoice-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .cleanora-detail-page .invoice-table tr {
+        padding: 13px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .cleanora-detail-page .invoice-table td {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 3px 0;
+        border: 0;
+        text-align: right;
+    }
+
+    .cleanora-detail-page .invoice-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 500;
+        text-align: left;
+    }
+
+    .cleanora-detail-page .invoice-table td.invoice-item-name {
+        display: block;
+        padding-bottom: 7px;
+        text-align: left;
+    }
+
+    .cleanora-detail-page .invoice-table td.invoice-item-name::before {
+        display: none;
+    }
+
+    .cleanora-detail-page .invoice-table td.invoice-item-name strong {
+        font-size: 11.5px;
+    }
+
+    .cleanora-detail-page .invoice-table td:last-child strong {
+        color: var(--teal-dark);
+    }
+}
+
+/* =====================================
+   CETAK NOTA
+===================================== */
+
+@media print {
+    body {
+        background: #ffffff !important;
+    }
+
+    .navbar,
+    .footer,
+    .detail-hero,
+    .detail-aside,
+    .overview-card,
+    .invoice-toolbar,
+    .breadcrumb {
+        display: none !important;
+    }
+
+    .cleanora-detail-page,
+    .cleanora-detail-page main,
+    .detail-section,
+    .detail-section .container,
+    .detail-layout,
+    .detail-main {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+    }
+
+    .cleanora-detail-page .detail-card {
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .cleanora-detail-page .invoice-sheet {
+        padding: 0 !important;
+    }
+
+    .cleanora-detail-page .invoice-footer {
+        margin-top: 28px;
+    }
+}

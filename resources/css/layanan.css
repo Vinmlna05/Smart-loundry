@@ -1,0 +1,765 @@
+.cleanora-services-page .section {
+    padding: 90px 0;
+}
+
+.cleanora-services-page .section-label {
+    display: inline-block;
+    margin-bottom: 14px;
+    color: var(--teal);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.cleanora-services-page .page-hero {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(
+            110deg,
+            #f1f9fa 0%,
+            #f8fcfc 65%,
+            #e5f4f5 100%
+        );
+}
+
+.cleanora-services-page .page-hero-content {
+    position: relative;
+    padding-top: 65px;
+    padding-bottom: 68px;
+}
+
+.cleanora-services-page .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 34px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.cleanora-services-page .breadcrumb a {
+    color: var(--teal);
+}
+
+.cleanora-services-page .breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.cleanora-services-page .page-hero h1 {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 19px;
+    font-size: clamp(42px, 5vw, 60px);
+}
+
+.cleanora-services-page .page-hero-content > p {
+    max-width: 510px;
+    font-size: 13px;
+    line-height: 1.9;
+}
+
+.cleanora-services-page .page-hero .btn {
+    margin-top: 25px;
+}
+
+.cleanora-services-page .page-hero-decoration {
+    position: absolute;
+    right: 8%;
+    bottom: 25px;
+    color: rgba(7, 139, 155, 0.1);
+    font-family: var(--font-heading);
+    font-size: 180px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.cleanora-services-page .benefit-strip {
+    border-bottom: 1px solid var(--border);
+    background: white;
+}
+
+.cleanora-services-page .benefit-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-top: 24px;
+    padding-bottom: 24px;
+}
+
+.cleanora-services-page .benefit-item {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 0 24px;
+    border-right: 1px solid var(--border);
+}
+
+.cleanora-services-page .benefit-item:first-child {
+    padding-left: 0;
+}
+
+.cleanora-services-page .benefit-item:last-child {
+    padding-right: 0;
+    border-right: 0;
+}
+
+.cleanora-services-page .benefit-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: var(--teal);
+    background: var(--aqua);
+    font-size: 18px;
+}
+
+.cleanora-services-page .benefit-item strong,
+.cleanora-services-page .benefit-item small {
+    display: block;
+}
+
+.cleanora-services-page .benefit-item strong {
+    font-size: 11px;
+}
+
+.cleanora-services-page .benefit-item small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.cleanora-services-page .section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 30px;
+}
+
+.cleanora-services-page .section-heading h2,
+.cleanora-services-page .policy-content h2 {
+    font-size: clamp(32px, 3.5vw, 43px);
+}
+
+.cleanora-services-page .section-description {
+    max-width: 530px;
+    margin-top: 13px;
+    font-size: 12px;
+    line-height: 1.9;
+}
+
+.cleanora-services-page .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 32px;
+}
+
+.cleanora-services-page .filter-btn {
+    min-height: 39px;
+    padding: 9px 17px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: #627a80;
+    background: white;
+    font-size: 11px;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.cleanora-services-page .filter-btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+}
+
+.cleanora-services-page .filter-btn.active {
+    border-color: var(--teal);
+    color: white;
+    background: var(--teal);
+}
+
+.cleanora-services-page .service-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 25px;
+}
+
+.cleanora-services-page .service-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: white;
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.cleanora-services-page .service-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 35px rgba(15, 67, 77, 0.09);
+}
+
+.cleanora-services-page .service-card[hidden] {
+    display: none !important;
+}
+
+.cleanora-services-page .service-image {
+    position: relative;
+    overflow: hidden;
+    height: 210px;
+    background: var(--aqua);
+}
+
+.cleanora-services-page .service-image img {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.45s ease;
+}
+
+.cleanora-services-page .service-card:hover .service-image img {
+    transform: scale(1.04);
+}
+
+.cleanora-services-page .service-tag,
+.cleanora-services-page .popular-tag {
+    position: absolute;
+    top: 13px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.cleanora-services-page .service-tag {
+    left: 13px;
+    color: var(--teal-dark);
+    background: rgba(255, 255, 255, 0.94);
+    letter-spacing: 0.7px;
+}
+
+.cleanora-services-page .popular-tag {
+    right: 12px;
+    color: white;
+    background: var(--teal);
+}
+
+.cleanora-services-page .service-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+    padding: 22px 20px 20px;
+}
+
+.cleanora-services-page .service-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.cleanora-services-page .service-title-row h3 {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.cleanora-services-page .service-index {
+    color: #b4d5d9;
+    font-family: var(--font-heading);
+    font-size: 20px;
+}
+
+.cleanora-services-page .service-description {
+    min-height: 56px;
+    margin-top: 10px;
+    font-size: 11px;
+    line-height: 1.9;
+}
+
+.cleanora-services-page .price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 0 12px;
+    margin-top: 7px;
+    border-top: 1px solid var(--border);
+}
+
+.cleanora-services-page .price-row > span {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-services-page .price-row strong {
+    color: var(--teal-dark);
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.cleanora-services-page .price-row strong small {
+    margin-left: 3px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.cleanora-services-page .service-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-bottom: 17px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.cleanora-services-page .service-button {
+    width: 100%;
+    margin-top: auto;
+    min-height: 42px;
+}
+
+.cleanora-services-page .item-price-section {
+    background: var(--aqua-soft);
+}
+
+.cleanora-services-page .price-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: white;
+}
+
+.cleanora-services-page .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.cleanora-services-page .price-table thead {
+    background: #edf7f8;
+}
+
+.cleanora-services-page .price-table th {
+    padding: 17px 22px;
+    color: var(--teal-dark);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cleanora-services-page .price-table td {
+    padding: 17px 22px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.cleanora-services-page .price-table tbody tr {
+    transition: background 0.2s;
+}
+
+.cleanora-services-page .price-table tbody tr:hover {
+    background: #f9fcfc;
+}
+
+.cleanora-services-page .price-table td strong,
+.cleanora-services-page .price-table td small {
+    display: block;
+}
+
+.cleanora-services-page .price-table td strong {
+    color: var(--text);
+    font-size: 12px;
+}
+
+.cleanora-services-page .price-table td small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-services-page .price-table .table-price {
+    color: var(--teal);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cleanora-services-page .table-note {
+    margin-top: 13px;
+    font-size: 10px;
+    line-height: 1.8;
+}
+
+.cleanora-services-page .policy-section {
+    background: white;
+}
+
+.cleanora-services-page .policy-grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 75px;
+    align-items: start;
+}
+
+.cleanora-services-page .policy-content > p {
+    margin-top: 19px;
+    font-size: 12px;
+    line-height: 2;
+}
+
+.cleanora-services-page .policy-content .btn {
+    margin-top: 24px;
+}
+
+.cleanora-services-page .policy-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.cleanora-services-page .policy-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-services-page .policy-item:first-child {
+    padding-top: 0;
+}
+
+.cleanora-services-page .policy-icon {
+    width: 39px;
+    height: 39px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: var(--teal);
+    background: var(--aqua);
+    font-family: var(--font-heading);
+    font-size: 15px;
+}
+
+.cleanora-services-page .policy-item h3 {
+    margin-bottom: 5px;
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.cleanora-services-page .policy-item p {
+    font-size: 11px;
+    line-height: 1.9;
+}
+
+.cleanora-services-page .faq-section {
+    background: var(--aqua-soft);
+}
+
+.cleanora-services-page .faq-container {
+    max-width: 850px;
+}
+
+.cleanora-services-page .center-heading {
+    margin-bottom: 38px;
+    text-align: center;
+}
+
+.cleanora-services-page .center-heading h2 {
+    font-size: clamp(30px, 3.5vw, 40px);
+}
+
+.cleanora-services-page .center-heading > p {
+    margin-top: 12px;
+    font-size: 12px;
+}
+
+.cleanora-services-page .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cleanora-services-page .faq-item {
+    padding: 0 22px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+}
+
+.cleanora-services-page .faq-item summary {
+    position: relative;
+    padding: 20px 25px 20px 0;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.cleanora-services-page .faq-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.cleanora-services-page .faq-item summary::after {
+    position: absolute;
+    top: 17px;
+    right: 0;
+    color: var(--teal);
+    content: "+";
+    font-size: 20px;
+    font-weight: 400;
+}
+
+.cleanora-services-page .faq-item[open] summary::after {
+    content: "−";
+}
+
+.cleanora-services-page .faq-item > p {
+    padding: 0 0 20px;
+    font-size: 11px;
+    line-height: 1.9;
+}
+
+.cleanora-services-page summary:focus-visible {
+    outline: 3px solid var(--teal-light);
+    outline-offset: 4px;
+}
+
+.cleanora-services-page .final-cta {
+    padding: 72px 0;
+}
+
+.cleanora-services-page .final-cta-content > p {
+    font-size: 12px;
+}
+
+.cleanora-services-page .cta-buttons {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+@media (max-width: 1000px) {
+    .cleanora-services-page .service-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cleanora-services-page .service-image {
+        height: 200px;
+    }
+
+    .cleanora-services-page .policy-grid {
+        gap: 40px;
+    }
+}
+
+@media (max-width: 700px) {
+    .cleanora-services-page .section {
+        padding: 62px 0;
+    }
+
+    .cleanora-services-page .page-hero-content {
+        padding-top: 40px;
+        padding-bottom: 48px;
+    }
+
+    .cleanora-services-page .breadcrumb {
+        margin-bottom: 27px;
+        font-size: 10px;
+    }
+
+    .cleanora-services-page .page-hero h1 {
+        font-size: clamp(37px, 9vw, 49px);
+    }
+
+    .cleanora-services-page .page-hero-content > p {
+        font-size: 12px;
+    }
+
+    .cleanora-services-page .page-hero-decoration {
+        right: -10px;
+        bottom: 15px;
+        font-size: 120px;
+    }
+
+    .cleanora-services-page .benefit-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding-top: 22px;
+        padding-bottom: 22px;
+    }
+
+    .cleanora-services-page .benefit-item,
+    .cleanora-services-page .benefit-item:first-child,
+    .cleanora-services-page .benefit-item:last-child {
+        padding: 0;
+        border: 0;
+    }
+
+    .cleanora-services-page .benefit-item small {
+        font-size: 10px;
+    }
+
+    .cleanora-services-page .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 25px;
+    }
+
+    .cleanora-services-page .section-heading h2,
+    .cleanora-services-page .policy-content h2 {
+        font-size: 33px;
+    }
+
+    .cleanora-services-page .section-description {
+        font-size: 11px;
+    }
+
+    .cleanora-services-page .filter-bar {
+        gap: 8px;
+        margin-bottom: 25px;
+    }
+
+    .cleanora-services-page .filter-btn {
+        min-height: 36px;
+        padding: 8px 12px;
+        font-size: 10px;
+    }
+
+    .cleanora-services-page .service-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .cleanora-services-page .service-image {
+        height: 230px;
+    }
+
+    .cleanora-services-page .service-body {
+        min-height: 285px;
+        padding: 20px;
+    }
+
+    .cleanora-services-page .service-title-row h3 {
+        font-size: 22px;
+    }
+
+    .cleanora-services-page .service-description {
+        min-height: auto;
+    }
+
+    .cleanora-services-page .price-row strong {
+        font-size: 20px;
+    }
+
+    .cleanora-services-page .price-table {
+        min-width: 490px;
+    }
+
+    .cleanora-services-page .price-table th,
+    .cleanora-services-page .price-table td {
+        padding: 15px;
+    }
+
+    .cleanora-services-page .table-note {
+        font-size: 10px;
+    }
+
+    .cleanora-services-page .policy-grid {
+        grid-template-columns: 1fr;
+        gap: 35px;
+    }
+
+    .cleanora-services-page .policy-content > p {
+        font-size: 11px;
+    }
+
+    .cleanora-services-page .policy-item {
+        gap: 13px;
+    }
+
+    .cleanora-services-page .policy-item h3 {
+        font-size: 17px;
+    }
+
+    .cleanora-services-page .center-heading {
+        margin-bottom: 28px;
+    }
+
+    .cleanora-services-page .center-heading h2 {
+        font-size: 31px;
+    }
+
+    .cleanora-services-page .faq-item {
+        padding-inline: 16px;
+    }
+
+    .cleanora-services-page .faq-item summary {
+        font-size: 11px;
+    }
+
+    .cleanora-services-page .faq-item > p {
+        font-size: 10px;
+    }
+
+    .cleanora-services-page .final-cta {
+        padding: 55px 0;
+    }
+
+    .cleanora-services-page .final-cta-content h2 {
+        font-size: 32px;
+    }
+
+    .cleanora-services-page .final-cta-content > p {
+        font-size: 11px;
+    }
+
+    .cleanora-services-page .cta-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cleanora-services-page .cta-buttons .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 380px) {
+    .cleanora-services-page .page-hero h1 {
+        font-size: 35px;
+    }
+
+    .cleanora-services-page .section-heading h2,
+    .cleanora-services-page .policy-content h2 {
+        font-size: 29px;
+    }
+
+    .cleanora-services-page .service-image {
+        height: 200px;
+    }
+
+    .cleanora-services-page .filter-btn {
+        padding-inline: 10px;
+        font-size: 9px;
+    }
+
+    .cleanora-services-page .final-cta-content h2 {
+        font-size: 29px;
+    }
+}

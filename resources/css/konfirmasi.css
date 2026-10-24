@@ -1,0 +1,873 @@
+/* =====================================
+   HALAMAN RINGKASAN DAN KONFIRMASI
+===================================== */
+
+.cleanora-confirm-page .confirm-hero {
+    background: linear-gradient(
+        110deg,
+        #f1f9fa 0%,
+        #f8fcfc 65%,
+        #e5f4f5 100%
+    );
+}
+
+.cleanora-confirm-page .confirm-hero-content {
+    padding-top: 42px;
+    padding-bottom: 46px;
+}
+
+.cleanora-confirm-page .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 30px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-confirm-page .breadcrumb a {
+    color: var(--teal);
+}
+
+.cleanora-confirm-page .breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.cleanora-confirm-page .confirm-hero h1 {
+    margin-bottom: 17px;
+    font-size: clamp(38px, 5vw, 55px);
+}
+
+.cleanora-confirm-page .confirm-hero-content > p {
+    max-width: 560px;
+    font-size: 12px;
+    line-height: 1.9;
+}
+
+.cleanora-confirm-page .confirm-progress {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.cleanora-confirm-page .confirm-progress-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.cleanora-confirm-page .confirm-progress-step > span {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-confirm-page .confirm-progress-step.done > span {
+    border-color: #b8d9de;
+    background: var(--aqua);
+    color: var(--teal-dark);
+}
+
+.cleanora-confirm-page .confirm-progress-step.active {
+    color: var(--teal-dark);
+}
+
+.cleanora-confirm-page .confirm-progress-step.active > span {
+    border-color: var(--teal);
+    background: var(--teal);
+    color: #ffffff;
+}
+
+.cleanora-confirm-page .confirm-progress-line {
+    width: 30px;
+    height: 1px;
+    background: #cfe3e6;
+}
+
+/* =====================================
+   LAYOUT
+===================================== */
+
+.cleanora-confirm-page .confirm-section {
+    padding: 56px 0 90px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-confirm-page .confirm-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(295px, 0.8fr);
+    align-items: start;
+    gap: 30px;
+}
+
+.cleanora-confirm-page .confirm-main {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+
+.cleanora-confirm-page .confirm-aside {
+    position: sticky;
+    top: 100px;
+    display: grid;
+    gap: 16px;
+}
+
+/* =====================================
+   KARTU DETAIL
+===================================== */
+
+.cleanora-confirm-page .confirm-block {
+    padding: 24px 26px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 18px rgba(17, 73, 83, 0.025);
+}
+
+.cleanora-confirm-page .confirm-block-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-confirm-page .confirm-block-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.cleanora-confirm-page .confirm-step {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--aqua);
+    color: var(--teal);
+    font-family: var(--font-heading);
+    font-size: 15px;
+}
+
+.cleanora-confirm-page .confirm-block-title h2 {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.cleanora-confirm-page .confirm-block-title p {
+    margin-top: 3px;
+    font-size: 10px;
+}
+
+.cleanora-confirm-page .confirm-edit {
+    flex-shrink: 0;
+    padding: 6px 11px;
+    border: 1px solid #b8d9de;
+    border-radius: 7px;
+    background: #ffffff;
+    color: var(--teal-dark);
+    font-size: 9.5px;
+    font-weight: 600;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.cleanora-confirm-page .confirm-edit:hover {
+    border-color: var(--teal);
+    background: var(--aqua);
+}
+
+.cleanora-confirm-page .confirm-rows {
+    display: grid;
+    gap: 14px;
+}
+
+.cleanora-confirm-page .confirm-row {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 14px;
+    font-size: 11px;
+}
+
+.cleanora-confirm-page .confirm-row dt {
+    color: var(--muted);
+}
+
+.cleanora-confirm-page .confirm-row dd {
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.cleanora-confirm-page .confirm-row dd small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 400;
+}
+
+.cleanora-confirm-page .confirm-service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-confirm-page .confirm-service-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--teal);
+    font-size: 19px;
+}
+
+.cleanora-confirm-page .confirm-service strong {
+    display: block;
+    font-size: 12px;
+}
+
+.cleanora-confirm-page .confirm-service small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.cleanora-confirm-page .confirm-service-badge {
+    margin-left: auto;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--aqua);
+    color: var(--teal-dark);
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cleanora-confirm-page .confirm-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 15px 17px;
+    border: 1px solid #f0e0bd;
+    border-radius: 10px;
+    background: #fdf8ec;
+}
+
+.cleanora-confirm-page .confirm-notice-icon {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #f6e8c9;
+    color: #a07824;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cleanora-confirm-page .confirm-notice strong {
+    display: block;
+    color: #8a6a1f;
+    font-size: 11px;
+}
+
+.cleanora-confirm-page .confirm-notice p {
+    margin-top: 3px;
+    color: #94783c;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+/* =====================================
+   KARTU RINGKASAN
+===================================== */
+
+.cleanora-confirm-page .confirm-summary {
+    padding: 25px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: #ffffff;
+    box-shadow: 0 12px 35px rgba(15, 67, 77, 0.06);
+}
+
+.cleanora-confirm-page .confirm-summary .section-label {
+    margin-bottom: 10px;
+}
+
+.cleanora-confirm-page .confirm-summary h2 {
+    font-size: 28px;
+}
+
+.cleanora-confirm-page .confirm-summary > p {
+    margin-top: 5px;
+    font-size: 10.5px;
+}
+
+.cleanora-confirm-page .confirm-summary-service {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-top: 14px;
+    padding: 13px 0 15px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cleanora-confirm-page .confirm-summary-service .icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: var(--aqua);
+    color: var(--teal);
+    font-size: 20px;
+}
+
+.cleanora-confirm-page .confirm-summary-service strong {
+    display: block;
+    font-size: 11px;
+}
+
+.cleanora-confirm-page .confirm-summary-service small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 9.5px;
+}
+
+.cleanora-confirm-page .confirm-summary-lines {
+    display: grid;
+    gap: 10px;
+    padding: 14px 0;
+}
+
+.cleanora-confirm-page .confirm-line {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 10.5px;
+}
+
+.cleanora-confirm-page .confirm-line span {
+    color: var(--muted);
+}
+
+.cleanora-confirm-page .confirm-line strong {
+    font-weight: 600;
+    text-align: right;
+}
+
+.cleanora-confirm-page .confirm-total {
+    padding: 13px;
+    border-radius: 9px;
+    background: var(--aqua-soft);
+}
+
+.cleanora-confirm-page .confirm-total > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cleanora-confirm-page .confirm-total span {
+    color: var(--teal-dark);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.cleanora-confirm-page .confirm-total strong {
+    color: var(--teal-dark);
+    font-family: var(--font-heading);
+    font-size: 21px;
+    font-weight: 600;
+}
+
+.cleanora-confirm-page .confirm-total small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.cleanora-confirm-page .confirm-summary-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 11px;
+    border-radius: 8px;
+    background: #f8fbfc;
+    color: var(--muted);
+    font-size: 9.5px;
+    line-height: 1.7;
+}
+
+.cleanora-confirm-page .confirm-summary-note > span {
+    flex-shrink: 0;
+    color: var(--teal);
+}
+
+.cleanora-confirm-page .confirm-agreement {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+
+.cleanora-confirm-page .confirm-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    cursor: pointer;
+}
+
+.cleanora-confirm-page .confirm-checkbox input {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: var(--teal);
+}
+
+.cleanora-confirm-page .confirm-checkbox span {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.cleanora-confirm-page .confirm-submit {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.cleanora-confirm-page .confirm-submit:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.cleanora-confirm-page .confirm-back {
+    display: block;
+    margin-top: 10px;
+    color: var(--teal);
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.cleanora-confirm-page .confirm-back:hover {
+    text-decoration: underline;
+}
+
+.cleanora-confirm-page .confirm-secure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 13px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.cleanora-confirm-page .confirm-trust {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+.cleanora-confirm-page .confirm-trust-icon {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--aqua);
+    color: var(--teal);
+    font-size: 14px;
+}
+
+.cleanora-confirm-page .confirm-trust strong {
+    display: block;
+    font-size: 10.5px;
+}
+
+.cleanora-confirm-page .confirm-trust p {
+    margin-top: 3px;
+    font-size: 9.5px;
+    line-height: 1.7;
+}
+
+/* =====================================
+   STATUS TERKONFIRMASI
+===================================== */
+
+.cleanora-confirm-page .confirm-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid #cbe7d8;
+    border-radius: 9px;
+    background: #eef9f3;
+}
+
+.cleanora-confirm-page .confirm-status-icon {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #d5f0e2;
+    color: #227654;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cleanora-confirm-page .confirm-status strong {
+    display: block;
+    color: #1f6b4c;
+    font-size: 11px;
+}
+
+.cleanora-confirm-page .confirm-status small {
+    display: block;
+    margin-top: 2px;
+    color: #4b7f68;
+    font-size: 9.5px;
+    line-height: 1.6;
+}
+
+.cleanora-confirm-page .confirm-new {
+    width: 100%;
+    margin-top: 11px;
+}
+
+/* =====================================
+   KEADAAN KOSONG
+===================================== */
+
+.cleanora-confirm-page .confirm-empty {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 52px 30px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 12px 35px rgba(15, 67, 77, 0.05);
+    text-align: center;
+}
+
+.cleanora-confirm-page .confirm-empty-icon {
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: var(--aqua);
+    color: var(--teal);
+    font-size: 30px;
+}
+
+.cleanora-confirm-page .confirm-empty h2 {
+    margin-bottom: 10px;
+    font-size: 30px;
+}
+
+.cleanora-confirm-page .confirm-empty p {
+    max-width: 400px;
+    margin: 0 auto;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.cleanora-confirm-page .confirm-empty .btn {
+    margin-top: 22px;
+}
+
+/* =====================================
+   MODAL KONFIRMASI
+===================================== */
+
+.cleanora-confirm-page .confirm-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(6, 47, 57, 0.48);
+    backdrop-filter: blur(3px);
+    animation: confirmFade 0.2s ease;
+}
+
+.cleanora-confirm-page .confirm-modal {
+    width: min(460px, 100%);
+    padding: 30px;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 30px 80px rgba(6, 47, 57, 0.3);
+    text-align: center;
+    animation: confirmPop 0.24s ease;
+}
+
+.cleanora-confirm-page .confirm-modal-icon {
+    width: 58px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: #e8f7f0;
+    color: #227654;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.cleanora-confirm-page .confirm-modal .section-label {
+    margin-bottom: 8px;
+}
+
+.cleanora-confirm-page .confirm-modal h2 {
+    margin-bottom: 8px;
+    font-size: 28px;
+}
+
+.cleanora-confirm-page .confirm-modal > p {
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.cleanora-confirm-page .confirm-modal-note {
+    margin-top: 17px;
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--aqua-soft);
+    text-align: left;
+}
+
+.cleanora-confirm-page .confirm-modal-note strong {
+    display: block;
+    color: var(--teal-dark);
+    font-size: 10.5px;
+}
+
+.cleanora-confirm-page .confirm-modal-note p {
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.cleanora-confirm-page .confirm-modal-actions {
+    display: flex;
+    gap: 9px;
+    margin-top: 18px;
+}
+
+.cleanora-confirm-page .confirm-modal-actions .btn {
+    flex: 1;
+}
+
+@keyframes confirmFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes confirmPop {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* =====================================
+   TABLET
+===================================== */
+
+@media (max-width: 1000px) {
+    .cleanora-confirm-page .confirm-layout {
+        grid-template-columns: minmax(0, 1.3fr) minmax(270px, 0.8fr);
+        gap: 22px;
+    }
+
+    .cleanora-confirm-page .confirm-block {
+        padding: 21px;
+    }
+
+    .cleanora-confirm-page .confirm-summary {
+        padding: 21px;
+    }
+}
+
+@media (max-width: 850px) {
+    .cleanora-confirm-page .confirm-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cleanora-confirm-page .confirm-aside {
+        position: static;
+    }
+}
+
+/* =====================================
+   MOBILE
+===================================== */
+
+@media (max-width: 700px) {
+    .cleanora-confirm-page .confirm-hero-content {
+        padding-top: 32px;
+        padding-bottom: 36px;
+    }
+
+    .cleanora-confirm-page .confirm-hero h1 {
+        font-size: clamp(34px, 9vw, 43px);
+    }
+
+    .cleanora-confirm-page .confirm-hero-content > p {
+        font-size: 11px;
+    }
+
+    .cleanora-confirm-page .confirm-progress {
+        gap: 8px;
+        margin-top: 22px;
+    }
+
+    .cleanora-confirm-page .confirm-progress-line {
+        width: 18px;
+    }
+
+    .cleanora-confirm-page .confirm-progress-step {
+        font-size: 9px;
+    }
+
+    .cleanora-confirm-page .confirm-section {
+        padding: 36px 0 66px;
+    }
+
+    .cleanora-confirm-page .confirm-block {
+        padding: 18px;
+    }
+
+    .cleanora-confirm-page .confirm-block-head {
+        gap: 10px;
+    }
+
+    .cleanora-confirm-page .confirm-block-title h2 {
+        font-size: 18px;
+    }
+
+    .cleanora-confirm-page .confirm-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
+    }
+
+    .cleanora-confirm-page .confirm-row dt {
+        font-size: 10px;
+    }
+
+    .cleanora-confirm-page .confirm-row dd {
+        font-size: 11px;
+    }
+
+    .cleanora-confirm-page .confirm-service {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .cleanora-confirm-page .confirm-service-badge {
+        margin-left: 0;
+    }
+
+    .cleanora-confirm-page .confirm-summary {
+        padding: 20px;
+    }
+
+    .cleanora-confirm-page .confirm-summary h2 {
+        font-size: 26px;
+    }
+
+    .cleanora-confirm-page .confirm-empty {
+        padding: 40px 22px;
+    }
+
+    .cleanora-confirm-page .confirm-empty h2 {
+        font-size: 26px;
+    }
+
+    .cleanora-confirm-page .confirm-modal {
+        padding: 24px 20px;
+    }
+
+    .cleanora-confirm-page .confirm-modal h2 {
+        font-size: 25px;
+    }
+
+    .cleanora-confirm-page .confirm-modal-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 380px) {
+    .cleanora-confirm-page .confirm-hero h1 {
+        font-size: 32px;
+    }
+
+    .cleanora-confirm-page .confirm-progress-line {
+        display: none;
+    }
+}

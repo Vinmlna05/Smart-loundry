@@ -1,0 +1,495 @@
+/* =====================================
+   MANAJEMEN PELANGGAN
+===================================== */
+
+.admin-customers-page {
+    overflow: hidden;
+}
+
+.admin-customers-table th:nth-child(5) {
+    text-align: left;
+}
+
+.admin-customer-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.admin-customer-identity .admin-avatar {
+    width: 31px;
+    height: 31px;
+    font-size: 10px;
+}
+
+.admin-customer-identity .admin-cell-main {
+    min-width: 0;
+}
+
+.admin-customer-contact strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-customer-spend strong {
+    color: var(--teal-dark);
+}
+
+.admin-segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 7px;
+    border-radius: 999px;
+    font-size: 7.2px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.admin-segment > span {
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.admin-segment.is-loyal {
+    background: var(--aqua);
+    color: var(--teal-dark);
+}
+
+.admin-segment.is-new {
+    background: #eef3fb;
+    color: #4b6f9f;
+}
+
+.admin-segment.is-active {
+    background: #eef8f2;
+    color: #257453;
+}
+
+.admin-segment.is-attention {
+    background: #fdf4e4;
+    color: #9a6b14;
+}
+
+.admin-customer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+}
+
+.admin-customer-wa {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--teal);
+    text-decoration: none;
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease;
+}
+
+.admin-customer-wa:hover {
+    border-color: #bddadd;
+    background: var(--aqua);
+    color: var(--teal-dark);
+}
+
+/* =====================================
+   DRAWER PELANGGAN
+===================================== */
+
+.admin-customer-panel {
+    width: min(455px, 100%);
+}
+
+.admin-customer-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--aqua-soft);
+}
+
+.admin-customer-profile .admin-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 15px;
+}
+
+.admin-customer-profile > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+    line-height: 1.35;
+}
+
+.admin-customer-profile strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-customer-profile small {
+    color: var(--muted);
+    font-size: 7.6px;
+    line-height: 1.5;
+}
+
+.admin-customer-profile .admin-segment {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.admin-customer-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.admin-customer-detail-stats > div {
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.admin-customer-detail-stats span {
+    display: block;
+    color: #93a6ab;
+    font-size: 6.7px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.admin-customer-detail-stats strong {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--teal-dark);
+    font-size: 9.4px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-customer-address {
+    grid-column: 1 / -1;
+}
+
+.admin-customer-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 15px;
+    padding: 8px 9px;
+    border-radius: 7px;
+    background: #fdf8ed;
+    color: #84662c;
+    font-size: 7.6px;
+    line-height: 1.55;
+}
+
+.admin-customer-note svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #a8781f;
+}
+
+.admin-customer-orders {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+
+.admin-customer-orders-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-customer-orders-head .admin-card-label {
+    margin-bottom: 0;
+}
+
+.admin-customer-orders-head > span:last-child {
+    color: #93a6ab;
+    font-size: 7.2px;
+    font-weight: 600;
+}
+
+.admin-customer-order-list {
+    display: grid;
+    gap: 5px;
+    margin-top: 9px;
+}
+
+.admin-customer-order {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid #edf4f5;
+    border-radius: 8px;
+    background: #fcfefe;
+    color: var(--text);
+    text-decoration: none;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease;
+}
+
+.admin-customer-order:hover {
+    border-color: #cfe5e7;
+    background: #f7fcfc;
+}
+
+.admin-customer-order-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--aqua);
+    color: var(--teal-dark);
+}
+
+.admin-customer-order-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.admin-customer-order-main strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 8.2px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-customer-order-main small {
+    overflow: hidden;
+    color: #93a6ab;
+    font-size: 7px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-customer-order-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: 1px;
+    margin-left: auto;
+    text-align: right;
+}
+
+.admin-customer-order-side strong {
+    color: var(--text);
+    font-size: 8.2px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.admin-customer-order-side small {
+    font-size: 6.8px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.admin-customer-order-side small.is-warning {
+    color: #9a6b14;
+}
+
+.admin-customer-order-side small.is-process {
+    color: #0b6c78;
+}
+
+.admin-customer-order-side small.is-success {
+    color: #257453;
+}
+
+.admin-customer-order-side small.is-done {
+    color: #5d6f6b;
+}
+
+.admin-customer-order-side small.is-danger {
+    color: #a33e3e;
+}
+
+.admin-customer-order-side small.is-info {
+    color: #3b7a84;
+}
+
+.admin-customer-order > svg {
+    flex-shrink: 0;
+    color: #a5b4b8;
+}
+
+.admin-customer-orders-empty {
+    margin-top: 9px;
+    padding: 14px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 8px;
+    text-align: center;
+}
+
+.admin-customer-drawer-foot {
+    align-items: center;
+}
+
+.admin-customer-drawer-foot p {
+    max-width: 190px;
+}
+
+.admin-customer-drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.admin-customer-drawer-actions .admin-button {
+    min-height: 34px;
+    font-size: 8px;
+}
+
+.admin-customer-wa:focus-visible,
+.admin-customer-order:focus-visible,
+.admin-customer-drawer-actions .admin-button:focus-visible {
+    outline: 2px solid var(--teal-light);
+    outline-offset: 2px;
+}
+
+/* =====================================
+   RESPONSIF
+===================================== */
+
+@media (max-width: 700px) {
+    .admin-customers-table td[data-label="Pelanggan"] {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .admin-customers-table td[data-label="Pelanggan"]::before {
+        display: block;
+    }
+
+    .admin-customer-identity {
+        width: 100%;
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    .admin-customer-identity .admin-cell-main {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .admin-customer-contact,
+    .admin-customer-spend {
+        align-items: flex-end;
+    }
+
+    .admin-customers-table td[data-label="Segmen"] {
+        align-items: center;
+    }
+
+    .admin-customer-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .admin-customer-wa {
+        width: 31px;
+        height: 31px;
+    }
+
+    .admin-customer-profile {
+        flex-wrap: wrap;
+    }
+
+    .admin-customer-profile .admin-segment {
+        margin-left: 55px;
+    }
+
+    .admin-customer-detail-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-customer-detail-stats > div:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-customer-drawer-foot {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-customer-drawer-foot p {
+        max-width: none;
+    }
+
+    .admin-customer-drawer-actions {
+        width: 100%;
+    }
+
+    .admin-customer-drawer-actions .admin-button {
+        flex: 1;
+    }
+}
+
+@media (max-width: 440px) {
+    .admin-customer-detail-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-customer-detail-stats > div:last-child {
+        grid-column: auto;
+    }
+
+    .admin-customer-profile .admin-segment {
+        margin-left: 0;
+    }
+
+    .admin-customer-order-main small {
+        max-width: 130px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-customer-wa,
+    .admin-customer-order {
+        transition: none;
+    }
+}
