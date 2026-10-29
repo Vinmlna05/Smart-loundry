@@ -10,7 +10,7 @@ use App\Services\Gemini\GeminiException;
 use App\Support\WhatsAppNumber;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class ChatbotAssistant
 {
@@ -21,6 +21,12 @@ class ChatbotAssistant
         '14:00-16:00',
         '16:00-18:00',
     ];
+
+    private const CONTEXT_MESSAGE_LIMIT = 16;
+
+    private const CACHE_HISTORY_LIMIT = 60;
+
+    private const CACHE_TTL_SECONDS = 7200;
 
     public function __construct(
         private readonly GeminiClient $gemini,
@@ -39,21 +45,30 @@ class ChatbotAssistant
         ?User $user,
         array $settings,
         array $services,
+        string $source = 'chatbot',
+        bool $persist = true,
     ): array {
-        $session = ChatSession::query()->firstOrCreate(
-            ['token' => $token],
-            ['user_id' => $user?->id, 'source' => 'chatbot'],
-        );
+        $session = null;
 
-        if ($user && $session->user_id === null) {
-            $session->update(['user_id' => $user->id]);
+        if ($persist) {
+            $session = ChatSession::query()->firstOrCreate(
+                ['token' => $token],
+                ['user_id' => $user?->id, 'source' => $source],
+            );
+
+            if ($source === 'chatbot' && $session->source !== 'chatbot') {
+                $session->update(['source' => 'chatbot']);
+            }
+
+            if ($user && $session->user_id === null) {
+                $session->update(['user_id' => $user->id]);
+            }
         }
 
-        $history = $settings['storeTranscripts']
-            ? $this->history($session)
-            : collect();
+        $history = $this->conversationHistory($session, $token, $settings);
+        $previousOrder = $this->previousOrder($session, $token);
 
-        if ($history->count() >= (int) $settings['maxMessages']) {
+        if ($this->messageCount($session, $token, $settings, $persist) >= (int) $settings['maxMessages']) {
             return [
                 'session_token' => $token,
                 'reply' => 'Sesi obrolan ini sudah cukup panjang. Supaya pesananmu tetap akurat, lanjutkan lewat Pesan Manual atau hubungi outlet, ya.',
@@ -61,13 +76,14 @@ class ChatbotAssistant
                 'missing_fields' => [],
                 'handoff_to_manual' => true,
                 'summary' => null,
+                'ai_status' => 'limit',
             ];
         }
 
-        $contents = $history
-            ->map(fn (ChatMessage $chat) => [
-                'role' => $chat->role === 'assistant' ? 'model' : 'user',
-                'parts' => [['text' => (string) $chat->content]],
+        $contents = collect($history)
+            ->map(fn (array $chat) => [
+                'role' => $chat['role'] === 'assistant' ? 'model' : 'user',
+                'parts' => [['text' => (string) $chat['content']]],
             ])
             ->values()
             ->all();
@@ -95,92 +111,170 @@ class ChatbotAssistant
         }
 
         $contents[] = ['role' => 'user', 'parts' => $parts];
+        $cleanMessage = trim((string) ($message ?? ''));
 
         try {
             $raw = $this->gemini->generateJson(
                 $this->systemPrompt($settings, $services),
                 $contents,
             );
+
+            $result = $this->normalizeResult($raw, $settings, $services, $previousOrder);
+            $status = 'ok';
         } catch (GeminiException) {
-            $fallback = $this->fallbackFromUserMessage(
-                trim((string) ($message ?? '')),
-                $settings,
+            $result = $this->fallbackFromUserMessage(
+                $cleanMessage,
+                $previousOrder,
                 $services,
             );
 
-            if ($fallback !== null) {
-                return [
-                    'session_token' => $token,
-                    ...$fallback,
+            if ($result === null) {
+                $result = $this->knowledgeReply($cleanMessage, $settings, $services);
+            }
+
+            if ($result === null) {
+                $result = [
+                    'reply' => $this->fallbackReply($settings),
+                    'transcript' => null,
+                    'missing_fields' => [],
+                    'handoff_to_manual' => true,
+                    'summary' => null,
+                    'order' => $previousOrder,
                 ];
             }
 
-            return [
-                'session_token' => $token,
-                'reply' => $this->fallbackReply($settings),
-                'transcript' => null,
-                'missing_fields' => [],
-                'handoff_to_manual' => true,
-                'summary' => null,
-            ];
+            $status = 'fallback';
         }
 
-        $result = $this->normalizeResult($raw, $settings, $services);
+        $order = $result['order'] ?? $previousOrder;
+        unset($result['order']);
 
-        if ($settings['storeTranscripts']) {
-            $transcript = $result['transcript'];
-            $userText = $audio
-                ? ($transcript ?: null)
-                : trim((string) $message);
-
-            $session->messages()->create([
-                'role' => 'user',
-                'content' => $userText ?: ($audio ? '[Pesan suara]' : '-'),
-                'audio_seconds' => $audio ? $audioSeconds : null,
-                'meta' => $audio ? ['has_audio' => true, 'mime' => $audio->getMimeType()] : null,
-            ]);
-
-            $session->messages()->create([
-                'role' => 'assistant',
-                'content' => $result['reply'],
-                'meta' => $result['summary'] ? ['summary' => $result['summary']] : null,
-            ]);
+        if ($this->hasAnyOrderValue($order)) {
+            $this->rememberState($token, $order, $result['missing_fields']);
         }
+
+        $userText = $audio
+            ? (($result['transcript'] ?? null) ?: '[Pesan suara]')
+            : $cleanMessage;
+
+        if ($userText === '') {
+            $userText = '-';
+        }
+
+        $this->storeTurn(
+            $session,
+            $token,
+            $settings,
+            $persist,
+            $userText,
+            $result['reply'],
+            $audio,
+            $audioSeconds,
+            $order,
+            $result['summary'],
+        );
 
         return [
             'session_token' => $token,
             ...$result,
+            'ai_status' => $status,
         ];
     }
 
     /**
-     * @return Collection<int, ChatMessage>
+     * @param  array<string, mixed>  $settings
+     * @return array<int, array{role: string, content: string}>
      */
-    private function history(ChatSession $session): Collection
+    private function conversationHistory(?ChatSession $session, string $token, array $settings): array
     {
-        return $session->messages()
+        if ($session && $settings['storeTranscripts']) {
+            $stored = $session->messages()
+                ->orderByDesc('id')
+                ->limit(self::CONTEXT_MESSAGE_LIMIT)
+                ->get()
+                ->reverse()
+                ->map(fn (ChatMessage $chat) => [
+                    'role' => $chat->role,
+                    'content' => (string) $chat->content,
+                ])
+                ->values()
+                ->all();
+
+            if ($stored !== []) {
+                return $stored;
+            }
+        }
+
+        return array_slice($this->cachedHistory($token), -self::CONTEXT_MESSAGE_LIMIT);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function messageCount(?ChatSession $session, string $token, array $settings, bool $persist): int
+    {
+        if ($persist && $session && $settings['storeTranscripts']) {
+            return (int) $session->messages()->count();
+        }
+
+        return count($this->cachedHistory($token));
+    }
+
+    /**
+     * @return array<int, array{role: string, content: string}>
+     */
+    private function cachedHistory(string $token): array
+    {
+        $history = Cache::get($this->historyKey($token), []);
+
+        return is_array($history) ? array_values($history) : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previousOrder(?ChatSession $session, string $token): array
+    {
+        $cached = Cache::get($this->stateKey($token));
+
+        if (is_array($cached['order'] ?? null)) {
+            return $cached['order'];
+        }
+
+        if (! $session) {
+            return $this->emptyOrder();
+        }
+
+        $meta = $session->messages()
+            ->where('role', 'assistant')
+            ->whereNotNull('meta')
             ->orderByDesc('id')
-            ->limit(20)
-            ->get()
-            ->reverse()
-            ->values();
+            ->value('meta');
+
+        return is_array($meta['order'] ?? null)
+            ? $meta['order']
+            : $this->emptyOrder();
     }
 
     /**
      * @param  array<string, mixed>  $raw
      * @param  array<string, mixed>  $settings
      * @param  array<int, array<string, mixed>>  $services
+     * @param  array<string, mixed>  $previousOrder
      * @return array<string, mixed>
      */
-    private function normalizeResult(array $raw, array $settings, array $services): array
-    {
+    private function normalizeResult(
+        array $raw,
+        array $settings,
+        array $services,
+        array $previousOrder,
+    ): array {
         $rawOrder = is_array($raw['order'] ?? null) ? $raw['order'] : [];
-        $order = $this->normalizeOrder($rawOrder, $services);
-        $hasOrderData = $this->hasAnyOrderValue($order);
+        $currentOrder = $this->normalizeOrder($rawOrder, $services);
+        $order = $this->mergeOrder($previousOrder, $currentOrder, $services);
 
         $wantsToOrder = (bool) ($raw['wants_to_order'] ?? false)
-            || $hasOrderData
-            || $this->looksLikeOrderIntent($raw['reply'] ?? null, $rawOrder);
+            || $this->hasAnyOrderValue($currentOrder);
 
         $missing = $wantsToOrder
             ? $this->missingFields($order, $services)
@@ -197,8 +291,7 @@ class ChatbotAssistant
         }
 
         $shouldHandoff = (bool) ($raw['handoff_to_manual'] ?? false)
-            || ($settings['guardrails']['offerManual'] && $wantsToOrder && $missing !== [] && strlen($reply) < 3)
-            || (! $hasOrderData && ! $wantsToOrder && isset($raw['reply']));
+            && ! $wantsToOrder;
 
         return [
             'reply' => $reply,
@@ -208,6 +301,52 @@ class ChatbotAssistant
             'missing_fields' => $missing,
             'handoff_to_manual' => $shouldHandoff,
             'summary' => $summary,
+            'order' => $order,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $previousOrder
+     * @param  array<string, mixed>  $currentOrder
+     * @param  array<int, array<string, mixed>>  $services
+     * @return array<string, mixed>
+     */
+    private function mergeOrder(array $previousOrder, array $currentOrder, array $services): array
+    {
+        $merged = array_merge($this->emptyOrder(), $previousOrder);
+
+        foreach ($currentOrder as $key => $value) {
+            if ($value !== null) {
+                $merged[$key] = $value;
+            }
+        }
+
+        if (($currentOrder['intake_method'] ?? null) === 'antar') {
+            $merged['address'] = null;
+        }
+
+        if (! $this->serviceById($merged['service_id'] ?? null, $services)) {
+            $merged['service_id'] = null;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyOrder(): array
+    {
+        return [
+            'name' => null,
+            'whatsapp' => null,
+            'service_id' => null,
+            'estimated_quantity' => null,
+            'intake_method' => null,
+            'address' => null,
+            'schedule_date' => null,
+            'schedule_time' => null,
+            'notes' => null,
         ];
     }
 
@@ -442,7 +581,7 @@ class ChatbotAssistant
                 return $row;
             }, $services);
 
-            $lines[] = json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            $lines[] = json_encode($catalog, JSON_UNESCAPED_UNICODE);
         } else {
             $lines[] = 'Daftar tarif sedang tidak disertakan. Jangan menyebut tarif apa pun. Arahkan pelanggan melihat halaman Layanan & Tarif atau menghubungi outlet.';
         }
@@ -470,6 +609,76 @@ class ChatbotAssistant
             'Akhiri percakapan dengan sopan' => 'Maaf, aku belum bisa membantu saat ini. Terima kasih sudah menghubungi Cleanora.',
             default => 'Maaf, aku sedang tidak bisa memproses pesanmu. Kamu bisa lanjut lewat Pesan Manual agar pesanan dicek petugas.',
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<int, array<string, mixed>>  $services
+     * @return array<string, mixed>|null
+     */
+    private function knowledgeReply(string $message, array $settings, array $services): ?array
+    {
+        if ($message === '') {
+            return null;
+        }
+
+        $text = strtolower($message);
+
+        if (preg_match('/\b(berapa|harga|tarif|biaya)\b/', $text)) {
+            if (! $settings['autoServices'] || $services === []) {
+                return [
+                    'reply' => 'Daftar tarif belum bisa aku tampilkan sekarang. Lihat halaman Layanan & Tarif atau hubungi Outlet Pusat, ya.',
+                    'transcript' => null,
+                    'missing_fields' => [],
+                    'handoff_to_manual' => false,
+                    'summary' => null,
+                    'order' => null,
+                ];
+            }
+
+            $lines = collect($services)
+                ->take(6)
+                ->map(function (array $service) {
+                    $price = number_format((float) $service['price'], 0, ',', '.');
+                    $minimum = (float) $service['min'];
+
+                    return "- {$service['name']}: Rp {$price}/{$service['unit']} (minimal {$minimum} {$service['unit']})";
+                })
+                ->implode("\n");
+
+            return [
+                'reply' => "Ini tarif aktif Cleanora saat ini:\n{$lines}\n\nMau aku bantu buat pesanannya?",
+                'transcript' => null,
+                'missing_fields' => [],
+                'handoff_to_manual' => false,
+                'summary' => null,
+                'order' => null,
+            ];
+        }
+
+        if ($settings['includeOutlets'] && preg_match('/\b(jam|buka|outlet|lokasi|alamat)\b/', $text)) {
+            return [
+                'reply' => 'Outlet Pusat Cleanora buka setiap hari pukul 08.00-20.00. Area penjemputan akan dikonfirmasi petugas sebelum penjemputan.',
+                'transcript' => null,
+                'missing_fields' => [],
+                'handoff_to_manual' => false,
+                'summary' => null,
+                'order' => null,
+            ];
+        }
+
+        if ($settings['includeOutlets'] && preg_match('/\b(jemput|antar|penjemputan)\b/', $text)) {
+            return [
+                'reply' => 'Bisa. Cleanora melayani penjemputan dan antar sendiri ke Outlet Pusat. Untuk penjemputan, aku perlu alamat dan jadwal jemput.',
+                'transcript' => null,
+                'missing_fields' => [],
+                'handoff_to_manual' => false,
+                'summary' => null,
+                'order' => null,
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -537,53 +746,62 @@ class ChatbotAssistant
     }
 
     /**
-     * @param  array<string, mixed>  $order
-     */
-    private function looksLikeOrderIntent(?string $reply, array $order): bool
-    {
-        if ($this->hasAnyOrderValue($order)) {
-            return true;
-        }
-
-        $text = strtolower((string) $reply);
-
-        return str_contains($text, 'cuci')
-            || str_contains($text, 'pesan')
-            || str_contains($text, 'jemput')
-            || str_contains($text, 'antar')
-            || str_contains($text, 'laundry')
-            || str_contains($text, 'berat')
-            || str_contains($text, 'kg');
-    }
-
-    /**
-     * Fallback when Gemini fails to return valid JSON: parse the customer message directly.
-     *
+     * @param  array<string, mixed>  $previousOrder
      * @param  array<int, array<string, mixed>>  $services
      * @return array<string, mixed>|null
      */
-    private function fallbackFromUserMessage(string $message, array $settings, array $services): ?array
-    {
+    private function fallbackFromUserMessage(
+        string $message,
+        array $previousOrder,
+        array $services,
+    ): ?array {
         $normalized = trim($message);
 
         if ($normalized === '') {
             return null;
         }
 
+        $quantity = $this->detectQuantityFromText($normalized);
+        $whatsapp = $this->detectWhatsappFromText($normalized);
+        $scheduleDate = $this->detectScheduleDateFromText($normalized);
+        $scheduleTime = $this->detectScheduleTimeFromText($normalized);
         $text = strtolower($normalized);
+
+        $asksPrice = preg_match('/\b(berapa|harga|tarif|biaya)\b/', $text);
+
+        if ($asksPrice && ! $whatsapp && ! $scheduleDate && ! $scheduleTime) {
+            $explicitOrder = preg_match('/\b(pesan|order)\b/', $text)
+                || ($quantity !== null && $this->detectIntakeMethodFromText($normalized) !== null);
+
+            if (! $explicitOrder) {
+                return null;
+            }
+        }
+
+        $isQuestion = preg_match(
+            '/^(berapa|apakah|bisa|boleh|bagaimana|gimana|kapan|jam|tarif|harga|biaya|apa)\b/i',
+            $normalized,
+        );
+
+        if ($isQuestion && ! $quantity && ! $whatsapp && ! $scheduleDate && ! $scheduleTime) {
+            return null;
+        }
+
         $isOrderLike = str_contains($text, 'cuci')
             || str_contains($text, 'laundry')
             || str_contains($text, 'setrika')
             || str_contains($text, 'jemput')
             || str_contains($text, 'antar')
             || str_contains($text, 'pesan')
-            || preg_match('/\d+(?:[.,]\d+)?\s*(kg|kilo|kilogram)/i', $normalized);
+            || $quantity !== null
+            || $whatsapp !== null;
 
         if (! $isOrderLike) {
             return null;
         }
 
-        $order = $this->parseOrderFromText($normalized, $services);
+        $currentOrder = $this->parseOrderFromText($normalized, $services);
+        $order = $this->mergeOrder($previousOrder, $currentOrder, $services);
 
         if (! $this->hasAnyOrderValue($order)) {
             return null;
@@ -594,14 +812,13 @@ class ChatbotAssistant
             ? 'Baik, aku sudah menyusun ringkasan pesananmu. Cek detailnya lalu konfirmasi, ya.'
             : 'Aku masih butuh beberapa data agar pesananmu lengkap. '.implode(', ', $this->askableFields($missing));
 
-        $summary = $missing === [] ? $this->summary($order, $services) : null;
-
         return [
             'reply' => $reply,
             'transcript' => $normalized,
             'missing_fields' => $missing,
             'handoff_to_manual' => false,
-            'summary' => $summary,
+            'summary' => $missing === [] ? $this->summary($order, $services) : null,
+            'order' => $order,
         ];
     }
 
@@ -639,16 +856,47 @@ class ChatbotAssistant
     private function detectServiceFromText(string $message, array $services): ?array
     {
         $normalized = strtolower($message);
+        $best = null;
+        $bestScore = 0;
 
         foreach ($services as $service) {
-            $name = strtolower((string) ($service['name'] ?? ''));
+            $name = strtolower(trim((string) ($service['name'] ?? '')));
+
+            if ($name === '') {
+                continue;
+            }
 
             if (str_contains($normalized, $name)) {
-                return $service;
+                $score = 100 + mb_strlen($name);
+
+                if ($score > $bestScore) {
+                    $best = $service;
+                    $bestScore = $score;
+                }
+
+                continue;
+            }
+
+            $words = preg_split('/[^a-z0-9]+/', $name) ?: [];
+            $matched = 0;
+
+            foreach ($words as $word) {
+                if (mb_strlen($word) < 4 || in_array($word, ['cuci', 'setrika', 'laundry', 'kiloan', 'satuan', 'express'], true)) {
+                    continue;
+                }
+
+                if (str_contains($normalized, $word)) {
+                    $matched++;
+                }
+            }
+
+            if ($matched > $bestScore) {
+                $best = $service;
+                $bestScore = $matched;
             }
         }
 
-        return collect($services)->first();
+        return $bestScore > 0 ? $best : null;
     }
 
     private function detectQuantityFromText(string $message): ?float
@@ -657,7 +905,7 @@ class ChatbotAssistant
             return (float) str_replace(',', '.', $matches[1]);
         }
 
-        if (preg_match('/(\d+(?:[.,]\d+)?)\s*(pcs|biji|lembar)/i', $message, $matches)) {
+        if (preg_match('/(\d+(?:[.,]\d+)?)\s*(pcs|biji|lembar|pasang)/i', $message, $matches)) {
             return (float) str_replace(',', '.', $matches[1]);
         }
 
@@ -695,10 +943,14 @@ class ChatbotAssistant
             return $matches[0];
         }
 
-        if (preg_match('/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/', $message, $matches)) {
-            $date = Carbon::createFromFormat('d/m/Y', $matches[0]);
+        if (preg_match('/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/', $message, $matches)) {
+            try {
+                $date = Carbon::createFromFormat('d/m/Y', $matches[0]);
 
-            return $date->format('Y-m-d');
+                return $date->format('Y-m-d');
+            } catch (\Throwable) {
+                return null;
+            }
         }
 
         return null;
@@ -708,7 +960,7 @@ class ChatbotAssistant
     {
         $text = strtolower($message);
 
-        if (preg_match('/\b(08|8)\s*(?:\.|:)?\s*(00|30)?\b/', $text)) {
+        if (preg_match('/\b(08|8)(?:\s*[.:]\s*\d{2})?\b/', $text)) {
             return '08:00-10:00';
         }
 
@@ -724,8 +976,8 @@ class ChatbotAssistant
             return '16:00-18:00';
         }
 
-        if (preg_match('/\b(10|12|14|16|18)\s*(?:\.|:)?\s*(00|30)?\b/', $text)) {
-            return match ((int) preg_replace('/\D+/', '', $text) ?: 10) {
+        if (preg_match('/\b(10|12|14|16|18)(?:\s*[.:]\s*\d{2})?\b/', $text, $matches)) {
+            return match ((int) $matches[1]) {
                 10 => '10:00-12:00',
                 12 => '12:00-14:00',
                 14 => '14:00-16:00',
@@ -773,5 +1025,77 @@ class ChatbotAssistant
         ];
 
         return array_map(fn (string $field) => $labels[$field] ?? $field, $missing);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $order
+     * @param  array<string, mixed>|null  $summary
+     */
+    private function storeTurn(
+        ?ChatSession $session,
+        string $token,
+        array $settings,
+        bool $persist,
+        string $userText,
+        string $assistantText,
+        ?UploadedFile $audio,
+        ?int $audioSeconds,
+        array $order,
+        ?array $summary,
+    ): void {
+        if ($persist && $session && $settings['storeTranscripts']) {
+            $session->messages()->create([
+                'role' => 'user',
+                'content' => $userText,
+                'audio_seconds' => $audio ? $audioSeconds : null,
+                'meta' => $audio ? ['has_audio' => true, 'mime' => $audio->getMimeType()] : null,
+            ]);
+
+            $meta = $summary ? ['summary' => $summary] : [];
+
+            if ($this->hasAnyOrderValue($order)) {
+                $meta['order'] = $order;
+            }
+
+            $session->messages()->create([
+                'role' => 'assistant',
+                'content' => $assistantText,
+                'meta' => $meta !== [] ? $meta : null,
+            ]);
+        }
+
+        $history = $this->cachedHistory($token);
+        $history[] = ['role' => 'user', 'content' => $userText];
+        $history[] = ['role' => 'assistant', 'content' => $assistantText];
+
+        Cache::put(
+            $this->historyKey($token),
+            array_slice($history, -self::CACHE_HISTORY_LIMIT),
+            now()->addSeconds(self::CACHE_TTL_SECONDS),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $order
+     * @param  array<int, string>  $missing
+     */
+    private function rememberState(string $token, array $order, array $missing): void
+    {
+        Cache::put(
+            $this->stateKey($token),
+            ['order' => $order, 'missing_fields' => $missing],
+            now()->addSeconds(self::CACHE_TTL_SECONDS),
+        );
+    }
+
+    private function historyKey(string $token): string
+    {
+        return 'chatbot:history:'.sha1($token);
+    }
+
+    private function stateKey(string $token): string
+    {
+        return 'chatbot:state:'.sha1($token);
     }
 }

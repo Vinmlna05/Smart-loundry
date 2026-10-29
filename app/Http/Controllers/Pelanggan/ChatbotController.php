@@ -32,6 +32,9 @@ class ChatbotController extends Controller
         ServiceCatalog $catalog,
         ChatbotAssistant $assistant,
     ): JsonResponse {
+        $settingsData = $settings->all();
+        $maxAudioSeconds = (int) $settingsData['maxAudioSeconds'];
+
         $validated = $request->validate([
             'session_token' => ['required', 'string', 'min:8', 'max:64', 'regex:/^[A-Za-z0-9-]+$/'],
             'message' => ['nullable', 'string', 'max:1000', 'required_without:audio'],
@@ -41,15 +44,15 @@ class ChatbotController extends Controller
                 'max:8192',
                 'mimetypes:audio/wav,audio/x-wav,audio/mpeg,audio/ogg,audio/webm,audio/mp4,audio/x-m4a,audio/aac,audio/flac',
             ],
-            'audio_seconds' => ['nullable', 'integer', 'min:1', 'max:300'],
+            'audio_seconds' => ['nullable', 'integer', 'min:1', 'required_with:audio', 'max:'.$maxAudioSeconds],
         ], [
             'session_token.required' => 'Sesi percakapan tidak ditemukan. Muat ulang halaman, ya.',
             'message.required_without' => 'Tulis pesan atau kirim voice note.',
             'audio.max' => 'Ukuran voice note terlalu besar.',
             'audio.mimetypes' => 'Format voice note tidak didukung.',
+            'audio_seconds.required_with' => 'Durasi voice note tidak terbaca. Coba rekam ulang.',
+            'audio_seconds.max' => 'Durasi voice note maksimal '.$maxAudioSeconds.' detik.',
         ]);
-
-        $settingsData = $settings->all();
 
         if (! $settingsData['enabled']) {
             return response()->json([
@@ -59,6 +62,7 @@ class ChatbotController extends Controller
                 'missing_fields' => [],
                 'handoff_to_manual' => true,
                 'summary' => null,
+                'ai_status' => 'disabled',
             ]);
         }
 
@@ -93,6 +97,7 @@ class ChatbotController extends Controller
                 'missing_fields' => [],
                 'handoff_to_manual' => true,
                 'summary' => null,
+                'ai_status' => 'error',
             ], 200);
         }
 

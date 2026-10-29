@@ -7,8 +7,8 @@ use App\Http\Controllers\Pelanggan\TrackingController;
 use App\Http\Controllers\Pengusaha\ChatbotSettingController;
 use App\Http\Controllers\Pengusaha\DashboardController as PengusahaDashboardController;
 use App\Http\Controllers\Pengusaha\LayananController as PengusahaLayananController;
-use App\Http\Controllers\Pengusaha\PembayaranController as PengusahaPembayaranController;
 use App\Http\Controllers\Pengusaha\PelangganController as PengusahaPelangganController;
+use App\Http\Controllers\Pengusaha\PembayaranController as PengusahaPembayaranController;
 use App\Http\Controllers\Pengusaha\PesananController as PengusahaPesananController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
@@ -103,6 +103,10 @@ Route::middleware(['auth', 'role:pengusaha'])->group(function () {
 
     Route::post('/pengusaha/chatbot', [ChatbotSettingController::class, 'update'])
         ->name('pengusaha.chatbot.update');
+
+    Route::post('/pengusaha/chatbot/uji', [ChatbotSettingController::class, 'test'])
+        ->middleware('throttle:30,1')
+        ->name('pengusaha.chatbot.uji');
 
     Route::get('/pengusaha/pesanan/{order:order_number}', [PengusahaPesananController::class, 'show'])
         ->name('pengusaha.pesanan.detail');

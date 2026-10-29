@@ -41,61 +41,48 @@ const knowledgeToggles = [
 const nextPreviewId = () =>
     `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-const getCsrfToken = () =>
-    document
-        .querySelector('meta[name="csrf-token"]')
-        ?.getAttribute('content') ?? '';
+const createPreviewToken = () => {
+    const random =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
-const buildPreviewReply = (message, settings, sampleService, knowledge) => {
-    const value = message.toLowerCase();
+    return `owner-preview-${random}`.slice(0, 64);
+};
 
-    if (/harga|tarif|biaya|berapa/.test(value)) {
-        if (!settings.autoServices) {
-            return 'Info layanan dan tarif sedang tidak disertakan. Aktifkan “Sertakan layanan dan tarif aktif” agar aku bisa menyebutkan tarif resmi.';
+const readAudioDuration = (file) =>
+    new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const audio = new Audio();
+        const finish = (duration) => {
+            URL.revokeObjectURL(url);
+            audio.removeAttribute('src');
+            resolve(duration);
+        };
+
+        audio.onloadedmetadata = () =>
+            finish(Number.isFinite(audio.duration) ? audio.duration : 0);
+        audio.onerror = () => finish(0);
+        audio.src = url;
+        audio.load();
+    });
+
+const firstError = (error) => {
+    const errors = error?.response?.data?.errors;
+
+    if (errors && typeof errors === 'object') {
+        const first = Object.values(errors).flat()[0];
+
+        if (first) {
+            return first;
         }
-
-        if (!sampleService) {
-            return 'Belum ada layanan aktif yang bisa aku sebutkan. Tambahkan layanan terlebih dahulu di halaman Layanan & tarif.';
-        }
-
-        const duration = settings.includeDurations
-            ? ` Estimasi pengerjaan ${sampleService.duration.toLowerCase()} setelah cucian diterima.`
-            : '';
-
-        return `Untuk ${sampleService.name}, tarifnya ${formatRupiah(
-            sampleService.price,
-        )} per ${sampleService.unit}.${duration} Mau aku bantu siapkan pesanannya?`;
     }
 
-    if (/jemput|antar|alamat/.test(value)) {
-        if (!settings.includeOutlets) {
-            return 'Info penjemputan sedang tidak disertakan. Kamu tetap bisa antar sendiri ke outlet atau gunakan Pesan Manual.';
-        }
-
-        return `Bisa. Penjemputan tersedia di area ${knowledge.area}. Kirim alamat lengkap dan jadwal jemput, nanti aku bantu catat.`;
-    }
-
-    if (/jam|buka|outlet|lokasi/.test(value)) {
-        if (!settings.includeOutlets) {
-            return 'Info outlet dan jam buka sedang tidak disertakan. Kamu bisa memeriksa halaman outlet atau hubungi petugas.';
-        }
-
-        return `Outlet Pusat buka setiap hari ${knowledge.hours}. Alamat dan pilihan antar sendiri bisa dilihat di halaman outlet.`;
-    }
-
-    if (/pesan|order|cuci/.test(value)) {
-        return `Boleh, aku bantu. Kirim nama, nomor WhatsApp, layanan, perkiraan berat, dan pilih jemput atau antar sendiri. Aku hanya akan menanyakan data yang belum lengkap.`;
-    }
-
-    if (settings.fallbackAction === 'Minta pelanggan menghubungi outlet') {
-        return 'Aku belum bisa memastikan itu. Supaya tidak keliru, hubungi petugas Outlet Pusat agar dibantu langsung, ya.';
-    }
-
-    if (settings.fallbackAction === 'Akhiri percakapan dengan sopan') {
-        return 'Maaf, aku belum bisa membantu pertanyaan itu. Terima kasih sudah menghubungi Cleanora.';
-    }
-
-    return 'Aku belum yakin menjawab itu. Mau aku arahkan ke Pesan Manual supaya pesananmu bisa dicek petugas?';
+    return (
+        error?.response?.data?.message ||
+        error?.message ||
+        'Pesan uji gagal dikirim. Coba lagi.'
+    );
 };
 
 export default function PengusahaChatbot({
@@ -103,8 +90,11 @@ export default function PengusahaChatbot({
     services = [],
     stats: serverStats = {},
     knowledge = {},
+    recentSessions = [],
 }) {
-    const { flash } = usePage().props;
+    const page = usePage();
+    const { flash } = page.props;
+    const csrfToken = page.props.csrf_token || '';
     const [settings, setSettings] = useState(initialSettings);
     const [savedSettings, setSavedSettings] = useState(() =>
         JSON.stringify(initialSettings),
@@ -117,14 +107,15 @@ export default function PengusahaChatbot({
             text: initialSettings.greeting,
         },
     ]);
+    const [previewBusy, setPreviewBusy] = useState(false);
+    const [previewAudio, setPreviewAudio] = useState(null);
+    const [previewAudioSeconds, setPreviewAudioSeconds] = useState(0);
     const [toast, setToast] = useState('');
     const chatBodyRef = useRef(null);
+    const audioInputRef = useRef(null);
+    const previewSessionRef = useRef(createPreviewToken());
 
     const activeServices = useMemo(() => services, [services]);
-    const sampleService =
-        activeServices.find(
-            (service) => service.name === 'Cuci dan Setrika',
-        ) ?? activeServices[0];
     const selectedTone =
         chatbotToneOptions.find(
             (tone) => tone.value === settings.tone,
@@ -250,8 +241,6 @@ export default function PengusahaChatbot({
     const saveSettings = (event) => {
         event.preventDefault();
 
-        const csrfToken = getCsrfToken();
-
         router.post(
             route('pengusaha.chatbot.update'),
             { ...settings, _token: csrfToken },
@@ -259,7 +248,6 @@ export default function PengusahaChatbot({
                 preserveScroll: true,
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
-                    'X-XSRF-TOKEN': csrfToken,
                 },
                 onSuccess: () => {
                     setSavedSettings(JSON.stringify(settings));
@@ -278,7 +266,10 @@ export default function PengusahaChatbot({
     };
 
     const resetPreview = () => {
+        previewSessionRef.current = createPreviewToken();
         setPreviewInput('');
+        setPreviewAudio(null);
+        setPreviewAudioSeconds(0);
         setPreviewMessages([
             {
                 id: 'chat-greeting',
@@ -288,26 +279,132 @@ export default function PengusahaChatbot({
         ]);
     };
 
-    const sendPreviewMessage = (value) => {
-        const message = String(value ?? '').trim();
+    const handlePreviewAudio = async (event) => {
+        const file = event.target.files?.[0];
 
-        if (!message || !settings.enabled) {
+        event.target.value = '';
+
+        if (!file) {
             return;
         }
 
-        const reply = buildPreviewReply(
-            message,
-            settings,
-            sampleService,
-            outletKnowledge,
-        );
+        const duration = await readAudioDuration(file);
+        const maxSeconds = Number(settings.maxAudioSeconds || 60);
+
+        if (!duration) {
+            setToast('Durasi audio tidak terbaca. Coba file lain.');
+            return;
+        }
+
+        if (duration > maxSeconds) {
+            setToast(
+                `Durasi voice note maksimal ${maxSeconds} detik.`,
+            );
+            return;
+        }
+
+        setPreviewAudio(file);
+        setPreviewAudioSeconds(Math.max(1, Math.ceil(duration)));
+    };
+
+    const sendPreviewMessage = async (value) => {
+        const message = String(value ?? '').trim();
+
+        if (
+            (!message && !previewAudio) ||
+            previewBusy ||
+            !settings.enabled
+        ) {
+            return;
+        }
+
+        const session = previewSessionRef.current;
+        const audio = previewAudio;
+        const audioSeconds = previewAudioSeconds;
 
         setPreviewMessages((previous) => [
             ...previous,
-            { id: nextPreviewId(), role: 'user', text: message },
-            { id: nextPreviewId(), role: 'bot', text: reply },
+            {
+                id: nextPreviewId(),
+                role: 'user',
+                text: message,
+                audioName: audio?.name,
+                audioDuration: audio ? audioSeconds : null,
+            },
         ]);
         setPreviewInput('');
+        setPreviewAudio(null);
+        setPreviewAudioSeconds(0);
+        setPreviewBusy(true);
+
+        try {
+            const form = new FormData();
+
+            form.append('_token', csrfToken);
+            form.append('session_token', session);
+
+            if (message) {
+                form.append('message', message);
+            }
+
+            if (audio) {
+                form.append('audio', audio, audio.name);
+                form.append('audio_seconds', String(audioSeconds));
+            }
+
+            const { data } = await window.axios.post(
+                route('pengusaha.chatbot.uji'),
+                form,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                },
+            );
+
+            if (previewSessionRef.current !== session) {
+                return;
+            }
+
+            setPreviewMessages((previous) => [
+                ...previous,
+                {
+                    id: nextPreviewId(),
+                    role: 'bot',
+                    text: data.reply,
+                    transcript: data.transcript,
+                    summary: data.summary,
+                    handoff: data.handoff_to_manual,
+                },
+            ]);
+
+            if (data.ai_status === 'fallback') {
+                setToast(
+                    'Gemini gagal, balasan memakai fallback lokal. Periksa kuota atau kunci API.',
+                );
+            }
+        } catch (error) {
+            if (previewSessionRef.current !== session) {
+                return;
+            }
+
+            const text = firstError(error);
+
+            setPreviewMessages((previous) => [
+                ...previous,
+                {
+                    id: nextPreviewId(),
+                    role: 'bot',
+                    text,
+                },
+            ]);
+            setToast(text);
+        } finally {
+            if (previewSessionRef.current === session) {
+                setPreviewBusy(false);
+            }
+        }
     };
 
     const submitPreview = (event) => {
@@ -1046,13 +1143,86 @@ export default function PengusahaChatbot({
                                                 ✦
                                             </span>
                                         )}
-                                        <div
-                                            className={`admin-chat-bubble is-${message.role}`}
-                                        >
-                                            {message.text}
+                                        <div className="admin-chat-stack">
+                                            <div
+                                                className={`admin-chat-bubble is-${message.role}`}
+                                            >
+                                                {message.text}
+                                            </div>
+
+                                            {message.audioName && (
+                                                <span className="admin-chat-audio">
+                                                    <AdminIcon
+                                                        name="message"
+                                                        size={11}
+                                                    />
+                                                    {message.audioName} ·{' '}
+                                                    {message.audioDuration}s
+                                                </span>
+                                            )}
+
+                                            {message.transcript && (
+                                                <span className="admin-chat-transcript">
+                                                    “{message.transcript}”
+                                                </span>
+                                            )}
+
+                                            {message.summary && (
+                                                <div className="admin-chat-summary">
+                                                    <span>
+                                                        Ringkasan pesanan
+                                                    </span>
+                                                    <strong>
+                                                        {
+                                                            message.summary
+                                                                .serviceName
+                                                        }{' '}
+                                                        ·{' '}
+                                                        {
+                                                            message.summary
+                                                                .quantity
+                                                        }{' '}
+                                                        {
+                                                            message.summary
+                                                                .unit
+                                                        }
+                                                    </strong>
+                                                    <small>
+                                                        Estimasi{' '}
+                                                        {formatRupiah(
+                                                            message.summary
+                                                                .total,
+                                                        )}
+                                                    </small>
+                                                </div>
+                                            )}
+
+                                            {message.handoff && (
+                                                <span className="admin-chat-handoff">
+                                                    Arahkan pelanggan ke
+                                                    Pesan Manual
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
+
+                                {previewBusy && (
+                                    <div className="admin-chat-row is-bot">
+                                        <span
+                                            className="admin-chat-avatar"
+                                            aria-hidden="true"
+                                        >
+                                            <AdminIcon
+                                                name="spark"
+                                                size={11}
+                                            />
+                                        </span>
+                                        <div className="admin-chat-bubble is-bot admin-chat-busy">
+                                            Sedang memproses...
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="admin-chat-quick">
@@ -1062,7 +1232,10 @@ export default function PengusahaChatbot({
                                         <button
                                             key={prompt}
                                             type="button"
-                                            disabled={!settings.enabled}
+                                            disabled={
+                                                !settings.enabled ||
+                                                previewBusy
+                                            }
                                             onClick={() =>
                                                 sendPreviewMessage(prompt)
                                             }
@@ -1073,17 +1246,56 @@ export default function PengusahaChatbot({
                                 </div>
                             </div>
 
+                            {previewAudio && (
+                                <div className="admin-chat-attachment">
+                                    <AdminIcon name="message" size={12} />
+                                    <span>
+                                        {previewAudio.name} ·{' '}
+                                        {previewAudioSeconds}s
+                                    </span>
+                                    <button
+                                        type="button"
+                                        aria-label="Hapus voice note"
+                                        onClick={() => {
+                                            setPreviewAudio(null);
+                                            setPreviewAudioSeconds(0);
+                                        }}
+                                    >
+                                        <AdminIcon name="close" size={11} />
+                                    </button>
+                                </div>
+                            )}
+
+                            <input
+                                ref={audioInputRef}
+                                type="file"
+                                accept="audio/*"
+                                hidden
+                                onChange={handlePreviewAudio}
+                            />
+
                             <form
                                 className="admin-chat-input"
                                 onSubmit={submitPreview}
                             >
+                                <button
+                                    type="button"
+                                    className="admin-chat-attach"
+                                    aria-label="Unggah voice note"
+                                    disabled={!settings.enabled || previewBusy}
+                                    onClick={() =>
+                                        audioInputRef.current?.click()
+                                    }
+                                >
+                                    <AdminIcon name="message" size={15} />
+                                </button>
                                 <input
                                     type="text"
                                     value={previewInput}
                                     onChange={(event) =>
                                         setPreviewInput(event.target.value)
                                     }
-                                    disabled={!settings.enabled}
+                                    disabled={!settings.enabled || previewBusy}
                                     placeholder={
                                         settings.enabled
                                             ? 'Tulis pesan untuk mencoba...'
@@ -1096,7 +1308,9 @@ export default function PengusahaChatbot({
                                     aria-label="Kirim pesan pratinjau"
                                     disabled={
                                         !settings.enabled ||
-                                        !previewInput.trim()
+                                        previewBusy ||
+                                        (!previewInput.trim() &&
+                                            !previewAudio)
                                     }
                                 >
                                     <AdminIcon name="arrow" size={16} />
@@ -1104,8 +1318,9 @@ export default function PengusahaChatbot({
                             </form>
 
                             <p className="admin-chat-sample-note">
-                                Pratinjau lokal memakai balasan contoh. Chatbot
-                                pelanggan memakai Gemini dan aturan tersimpan.
+                                Uji ini memakai Gemini dan aturan yang sudah
+                                disimpan. Simpan perubahan dulu sebelum
+                                mencoba aturan baru.
                             </p>
                         </div>
                     </section>
@@ -1147,6 +1362,47 @@ export default function PengusahaChatbot({
                             Pengaturan disimpan di database dan dipakai backend
                             saat pelanggan mengirim teks atau voice note.
                         </p>
+                    </section>
+
+                    <section className="admin-card admin-chatbot-recent">
+                        <div className="admin-chatbot-server-head">
+                            <span className="admin-chatbot-server-icon">
+                                <AdminIcon name="message" size={18} />
+                            </span>
+                            <div>
+                                <span className="admin-card-label">
+                                    PERCAKAPAN TERBARU
+                                </span>
+                                <strong>Aktivitas pelanggan</strong>
+                                <small>Lima sesi terakhir dari chatbot</small>
+                            </div>
+                        </div>
+
+                        {recentSessions.length === 0 ? (
+                            <p className="admin-chatbot-recent-empty">
+                                Belum ada percakapan. Sesi pelanggan akan
+                                muncul di sini setelah chatbot dipakai.
+                            </p>
+                        ) : (
+                            <ul className="admin-chatbot-recent-list">
+                                {recentSessions.map((session) => (
+                                    <li key={session.id}>
+                                        <div>
+                                            <strong>
+                                                {session.customer}
+                                            </strong>
+                                            <small>
+                                                {session.lastMessage ||
+                                                    'Belum ada pesan'}
+                                            </small>
+                                        </div>
+                                        <span>
+                                            {session.messageCount} pesan
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </section>
                 </aside>
             </div>

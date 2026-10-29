@@ -2,6 +2,7 @@
 
 namespace App\Services\Gemini;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -21,11 +22,45 @@ class GeminiClient
             throw new GeminiException('Kunci API Gemini belum dikonfigurasi.');
         }
 
+        $lastDecodeError = null;
+
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $response = $this->request($apiKey, $systemInstruction, $contents);
+            $text = $this->extractText($response);
+
+            try {
+                $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+
+                $lastDecodeError = new GeminiException('Jawaban AI tidak dapat dibaca.');
+            } catch (Throwable $exception) {
+                $lastDecodeError = $exception;
+            }
+        }
+
+        throw new GeminiException(
+            'Jawaban AI tidak berformat JSON setelah dicoba ulang.',
+            previous: $lastDecodeError,
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $contents
+     */
+    private function request(
+        string $apiKey,
+        string $systemInstruction,
+        array $contents,
+    ): Response {
         $url = rtrim((string) config('gemini.endpoint'), '/')
             .'/models/'.config('gemini.model').':generateContent';
 
         try {
-            $response = Http::timeout((int) config('gemini.timeout', 60))
+            $response = Http::connectTimeout(10)
+                ->timeout((int) config('gemini.timeout', 60))
                 ->withHeaders([
                     'x-goog-api-key' => $apiKey,
                     'Content-Type' => 'application/json',
@@ -37,6 +72,7 @@ class GeminiClient
                     'contents' => $contents,
                     'generationConfig' => [
                         'temperature' => 0.2,
+                        'maxOutputTokens' => (int) config('gemini.max_output_tokens', 1024),
                         'responseMimeType' => 'application/json',
                         'responseSchema' => $this->schema(),
                     ],
@@ -44,33 +80,46 @@ class GeminiClient
         } catch (Throwable $exception) {
             report($exception);
 
-            throw new GeminiException('Layanan AI sedang tidak dapat dihubungi.', previous: $exception);
+            throw new GeminiException(
+                'Layanan AI sedang tidak dapat dihubungi.',
+                previous: $exception,
+            );
         }
 
         if ($response->failed()) {
-            throw new GeminiException('Layanan AI menolak permintaan.');
+            $reason = data_get($response->json(), 'error.message');
+            $reason = is_string($reason) && trim($reason) !== ''
+                ? ' '.mb_substr(trim($reason), 0, 240)
+                : '';
+
+            throw new GeminiException(
+                'Layanan AI menolak permintaan (HTTP '.$response->status().').'.$reason,
+            );
         }
 
-        $text = data_get($response->json(), 'candidates.0.content.parts.0.text');
+        return $response;
+    }
 
-        if (! is_string($text) || trim($text) === '') {
+    private function extractText(Response $response): string
+    {
+        $parts = data_get(
+            $response->json(),
+            'candidates.0.content.parts',
+            [],
+        );
+
+        $text = collect(is_array($parts) ? $parts : [])
+            ->pluck('text')
+            ->filter(fn (mixed $part) => is_string($part) && trim($part) !== '')
+            ->implode('');
+
+        if (trim($text) === '') {
             throw new GeminiException('Layanan AI tidak memberikan jawaban.');
         }
 
         $text = trim($text);
-        $text = preg_replace('/^```(?:json)?\s*|\s*```$/', '', $text) ?? $text;
 
-        try {
-            $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
-        } catch (Throwable $exception) {
-            throw new GeminiException('Jawaban AI tidak berformat JSON.', previous: $exception);
-        }
-
-        if (! is_array($decoded)) {
-            throw new GeminiException('Jawaban AI tidak dapat dibaca.');
-        }
-
-        return $decoded;
+        return preg_replace('/^```(?:json)?\s*|\s*```$/', '', $text) ?? $text;
     }
 
     /**

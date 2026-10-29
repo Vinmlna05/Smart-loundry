@@ -1,7 +1,7 @@
 import '../../../css/chatbot.css';
 
 import CleanoraLayout from '@/Layouts/CleanoraLayout';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const rupiah = (value) => `Rp${new Intl.NumberFormat('id-ID').format(value)}`;
@@ -50,8 +50,34 @@ const csrfToken = () => {
     return decodeURIComponent(cookie.split('=').slice(1).join('='));
 };
 
-const firstError = (error) => {
-    const errors = error?.response?.data?.errors;
+const STORAGE_KEY = 'cleanora-chatbot-session';
+
+const readStoredSession = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const stored = JSON.parse(
+            window.sessionStorage.getItem(STORAGE_KEY) || 'null',
+        );
+
+        if (
+            typeof stored?.token === 'string' &&
+            /^[A-Za-z0-9-]{8,64}$/.test(stored.token) &&
+            Array.isArray(stored.messages) &&
+            stored.messages.length > 0
+        ) {
+            return stored;
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+};
+
+const firstError = (error) => {    const errors = error?.response?.data?.errors;
 
     if (errors && typeof errors === 'object') {
         const first = Object.values(errors).flat()[0];
@@ -86,39 +112,55 @@ const convertToWav = async (blob) => {
         const buffer = await context.decodeAudioData(
             await blob.arrayBuffer(),
         );
-        const sampleRate = buffer.sampleRate;
-        const length = buffer.length;
-        const channels = buffer.numberOfChannels;
-        const mono = new Float32Array(length);
+        const targetRate = 16000;
+        const targetLength = Math.max(
+            1,
+            Math.round(buffer.duration * targetRate),
+        );
+        const ratio = buffer.sampleRate / targetRate;
+        const mono = new Float32Array(targetLength);
 
-        for (let channel = 0; channel < channels; channel += 1) {
-            const data = buffer.getChannelData(channel);
+        for (let index = 0; index < targetLength; index += 1) {
+            const start = Math.floor(index * ratio);
+            const end = Math.max(
+                start + 1,
+                Math.min(buffer.length, Math.floor((index + 1) * ratio)),
+            );
+            let total = 0;
+            let count = 0;
 
-            for (let index = 0; index < length; index += 1) {
-                mono[index] += data[index] / channels;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                const data = buffer.getChannelData(channel);
+
+                for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+                    total += data[sampleIndex];
+                    count += 1;
+                }
             }
+
+            mono[index] = count > 0 ? total / count : 0;
         }
 
-        const wav = new ArrayBuffer(44 + length * 2);
+        const wav = new ArrayBuffer(44 + targetLength * 2);
         const view = new DataView(wav);
 
         writeString(view, 0, 'RIFF');
-        view.setUint32(4, 36 + length * 2, true);
+        view.setUint32(4, 36 + targetLength * 2, true);
         writeString(view, 8, 'WAVE');
         writeString(view, 12, 'fmt ');
         view.setUint32(16, 16, true);
         view.setUint16(20, 1, true);
         view.setUint16(22, 1, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * 2, true);
+        view.setUint32(24, targetRate, true);
+        view.setUint32(28, targetRate * 2, true);
         view.setUint16(32, 2, true);
         view.setUint16(34, 16, true);
         writeString(view, 36, 'data');
-        view.setUint32(40, length * 2, true);
+        view.setUint32(40, targetLength * 2, true);
 
         let offset = 44;
 
-        for (let index = 0; index < length; index += 1) {
+        for (let index = 0; index < targetLength; index += 1) {
             const sample = Math.max(-1, Math.min(1, mono[index]));
             view.setInt16(
                 offset,
@@ -146,6 +188,8 @@ export default function PelangganChatbot({
     },
     services = [],
 }) {
+    const sharedCsrfToken = usePage().props.csrf_token;
+    const csrf = () => sharedCsrfToken || csrfToken();
     const greet = useCallback(
         () => [
             {
@@ -158,7 +202,10 @@ export default function PelangganChatbot({
         [settings.greeting],
     );
 
-    const [messages, setMessages] = useState(greet);
+    const [storedSession] = useState(readStoredSession);
+    const [messages, setMessages] = useState(() =>
+        storedSession?.messages?.length ? storedSession.messages : greet(),
+    );
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -167,8 +214,12 @@ export default function PelangganChatbot({
     const [confirmingId, setConfirmingId] = useState(null);
     const [missingFields, setMissingFields] = useState([]);
 
-    const idRef = useRef(100);
-    const sessionTokenRef = useRef(createSessionToken());
+    const idRef = useRef(
+        100 + (storedSession?.messages?.length ?? 0) * 3,
+    );
+    const sessionTokenRef = useRef(
+        storedSession?.token || createSessionToken(),
+    );
     const recordSecondsRef = useRef(0);
     const messagesRef = useRef(null);
     const inputRef = useRef(null);
@@ -207,6 +258,20 @@ export default function PelangganChatbot({
         return () => window.clearTimeout(timer);
     }, [toast]);
 
+    useEffect(() => {
+        try {
+            window.sessionStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({
+                    token: sessionTokenRef.current,
+                    messages: messages.slice(-40),
+                }),
+            );
+        } catch {
+            return;
+        }
+    }, [messages]);
+
     useEffect(
         () => () => {
             if (recordTimerRef.current) {
@@ -242,7 +307,7 @@ export default function PelangganChatbot({
 
     const sendChat = async ({ message, audio, audioSeconds, audioMessageId }) => {
         const form = new FormData();
-        const token = csrfToken();
+        const token = csrf();
 
         form.append('_token', token);
         form.append('session_token', sessionTokenRef.current);
@@ -269,7 +334,6 @@ export default function PelangganChatbot({
                     headers: {
                         'Content-Type': 'multipart/form-data',
                         'X-CSRF-TOKEN': token,
-                        'X-XSRF-TOKEN': token,
                     },
                 },
             );
@@ -336,6 +400,7 @@ export default function PelangganChatbot({
         }
 
         sessionTokenRef.current = createSessionToken();
+        window.sessionStorage.removeItem(STORAGE_KEY);
         setMessages(greet());
         setInput('');
         setIsRecording(false);
@@ -354,7 +419,7 @@ export default function PelangganChatbot({
         setConfirmingId(message.id);
 
         try {
-            const token = csrfToken();
+            const token = csrf();
             const payload = { ...message.summary.order, _token: token };
 
             const { data } = await window.axios.post(
@@ -363,7 +428,6 @@ export default function PelangganChatbot({
                 {
                     headers: {
                         'X-CSRF-TOKEN': token,
-                        'X-XSRF-TOKEN': token,
                     },
                 },
             );

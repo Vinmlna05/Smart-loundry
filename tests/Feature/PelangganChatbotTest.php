@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\Chatbot\ChatbotSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
@@ -48,6 +49,32 @@ class PelangganChatbotTest extends TestCase
                     ],
                 ],
             ]),
+        ]);
+    }
+
+    private function fakeGeminiSequence(array $payloads): void
+    {
+        config(['gemini.api_key' => 'test-key']);
+
+        $index = 0;
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => function () use (&$index, $payloads) {
+                $payload = $payloads[min($index, count($payloads) - 1)];
+                $index++;
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    ['text' => json_encode($payload)],
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+            },
         ]);
     }
 
@@ -308,5 +335,328 @@ class PelangganChatbotTest extends TestCase
             ->assertJsonValidationErrors('estimated_quantity');
 
         $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_qa_reply_does_not_trigger_manual_handoff(): void
+    {
+        $this->service();
+
+        $this->fakeGemini([
+            'reply' => 'Cuci dan Setrika Rp8.000 per kg, minimal 3 kg.',
+            'transcript' => null,
+            'wants_to_order' => false,
+            'handoff_to_manual' => false,
+            'order' => [
+                'name' => null,
+                'whatsapp' => null,
+                'service_id' => null,
+                'estimated_quantity' => null,
+                'intake_method' => null,
+                'address' => null,
+                'schedule_date' => null,
+                'schedule_time' => null,
+                'notes' => null,
+            ],
+        ]);
+
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-qa-123',
+                'message' => 'Berapa tarif cuci?',
+            ])
+            ->assertOk()
+            ->assertJsonPath('handoff_to_manual', false)
+            ->assertJsonPath('missing_fields', [])
+            ->assertJsonPath('summary', null)
+            ->assertJsonPath('ai_status', 'ok');
+    }
+
+    public function test_chatbot_merges_order_data_across_turns(): void
+    {
+        $service = $this->service();
+        $scheduleDate = now()->addDay()->toDateString();
+
+        $this->fakeGeminiSequence([
+            [
+                'reply' => 'Aku catat. Nomor WhatsApp dan jadwalnya masih kosong.',
+                'transcript' => null,
+                'wants_to_order' => true,
+                'handoff_to_manual' => false,
+                'order' => [
+                    'name' => 'Ayu Lestari',
+                    'whatsapp' => null,
+                    'service_id' => $service->id,
+                    'estimated_quantity' => 3,
+                    'intake_method' => 'jemput',
+                    'address' => 'Jl. Melati No. 12, Bandung',
+                    'schedule_date' => null,
+                    'schedule_time' => null,
+                    'notes' => null,
+                ],
+            ],
+            [
+                'reply' => 'Data sudah lengkap. Periksa ringkasan pesananmu, ya.',
+                'transcript' => null,
+                'wants_to_order' => true,
+                'handoff_to_manual' => false,
+                'order' => [
+                    'name' => null,
+                    'whatsapp' => '081234567890',
+                    'service_id' => null,
+                    'estimated_quantity' => null,
+                    'intake_method' => null,
+                    'address' => null,
+                    'schedule_date' => $scheduleDate,
+                    'schedule_time' => '10:00-12:00',
+                    'notes' => null,
+                ],
+            ],
+        ]);
+
+        $user = User::factory()->create();
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-merge-123',
+                'message' => 'Aku mau cuci dan setrika 3 kg, dijemput ke Jl. Melati No. 12, Bandung.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('missing_fields', ['whatsapp', 'schedule_date', 'schedule_time'])
+            ->assertJsonPath('summary', null);
+
+        $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-merge-123',
+                'message' => 'Nomor WhatsApp 081234567890, besok jam 10.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('missing_fields', [])
+            ->assertJsonPath('summary.order.name', 'Ayu Lestari')
+            ->assertJsonPath('summary.order.service_id', $service->id)
+            ->assertJsonPath('summary.order.estimated_quantity', 3)
+            ->assertJsonPath('summary.order.address', 'Jl. Melati No. 12, Bandung')
+            ->assertJsonPath('summary.total', 24000);
+
+        Http::assertSentCount(2);
+
+        $lastRequest = Http::recorded()->last()[0];
+        $body = json_decode($lastRequest->body(), true);
+
+        $this->assertStringContainsString(
+            'Aku mau cuci dan setrika 3 kg',
+            json_encode(data_get($body, 'contents', [])),
+        );
+    }
+
+    public function test_chatbot_keeps_history_in_cache_when_transcripts_are_disabled(): void
+    {
+        app(ChatbotSettings::class)->update(['storeTranscripts' => false]);
+
+        $this->fakeGeminiSequence([
+            [
+                'reply' => 'Halo Ayu, ada yang bisa dibantu?',
+                'transcript' => null,
+                'wants_to_order' => false,
+                'handoff_to_manual' => false,
+                'order' => [],
+            ],
+            [
+                'reply' => 'Cuci dan Setrika Rp8.000 per kg.',
+                'transcript' => null,
+                'wants_to_order' => false,
+                'handoff_to_manual' => false,
+                'order' => [],
+            ],
+        ]);
+
+        $user = User::factory()->create();
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-cache-123',
+                'message' => 'Halo, nama saya Ayu.',
+            ])
+            ->assertOk();
+
+        $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-cache-123',
+                'message' => 'Berapa tarif cuci?',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseCount('chat_sessions', 1);
+        $this->assertDatabaseCount('chat_messages', 0);
+
+        $lastRequest = Http::recorded()->last()[0];
+        $body = json_decode($lastRequest->body(), true);
+
+        $this->assertStringContainsString(
+            'Halo, nama saya Ayu.',
+            json_encode(data_get($body, 'contents', [])),
+        );
+    }
+
+    public function test_audio_duration_must_follow_the_saved_limit(): void
+    {
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->post('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-audio-limit',
+                'audio' => UploadedFile::fake()->create('voice.wav', 20, 'audio/wav'),
+                'audio_seconds' => 61,
+            ], [
+                'Accept' => 'application/json',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('audio_seconds');
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->post('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-audio-limit',
+                'audio' => UploadedFile::fake()->create('voice.wav', 20, 'audio/wav'),
+            ], [
+                'Accept' => 'application/json',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('audio_seconds');
+    }
+
+    public function test_chatbot_uses_local_tariff_fallback_when_gemini_fails(): void
+    {
+        $this->service();
+        config(['gemini.api_key' => 'test-key']);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'error' => ['message' => 'Quota exceeded.'],
+            ], 429),
+        ]);
+
+        $token = 'test-csrf-token';
+        $user = User::factory()->create();
+
+        $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-fallback-123',
+                'message' => 'Berapa tarif cuci?',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ai_status', 'fallback')
+            ->assertJsonPath('handoff_to_manual', false)
+            ->assertJsonPath('summary', null);
+
+        $reply = $this->withSession(['_token' => $token])
+            ->actingAs($user)
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-fallback-124',
+                'message' => 'Berapa tarif cuci 3 kg?',
+            ])
+            ->assertOk()
+            ->json('reply');
+
+        $this->assertStringContainsString('Cuci dan Setrika', $reply);
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_fallback_does_not_pick_the_first_service_when_it_is_not_mentioned(): void
+    {
+        $this->service();
+        config(['gemini.api_key' => 'test-key']);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'error' => ['message' => 'Quota exceeded.'],
+            ], 429),
+        ]);
+
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-service-fallback',
+                'message' => 'Saya mau cuci sepatu 2 pasang besok pagi.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('summary', null)
+            ->assertJsonPath('missing_fields', [
+                'name',
+                'whatsapp',
+                'service_id',
+                'intake_method',
+            ]);
+    }
+
+    public function test_gemini_json_response_is_retried_once(): void
+    {
+        $calls = 0;
+        config(['gemini.api_key' => 'test-key']);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => function () use (&$calls) {
+                $calls++;
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    [
+                                        'text' => $calls === 1
+                                            ? 'bukan json'
+                                            : json_encode([
+                                                'reply' => 'Cuci dan Setrika Rp8.000 per kg.',
+                                                'transcript' => null,
+                                                'wants_to_order' => false,
+                                                'handoff_to_manual' => false,
+                                                'order' => [],
+                                            ]),
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+            },
+        ]);
+
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-retry-123',
+                'message' => 'Berapa tarif cuci?',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ai_status', 'ok');
+
+        $this->assertSame(2, $calls);
     }
 }
