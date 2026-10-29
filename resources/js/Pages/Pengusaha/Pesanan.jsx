@@ -1,6 +1,5 @@
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminOrders,
     formatRupiah,
     orderStatuses,
     orderStatusTone,
@@ -43,7 +42,7 @@ const summaryItems = [
     },
 ];
 
-export default function PengusahaPesanan() {
+export default function PengusahaPesanan({ orders = [] }) {
     const { url } = usePage();
     const urlParams = useMemo(
         () => new URLSearchParams(url.split('?')[1] ?? ''),
@@ -68,21 +67,20 @@ export default function PengusahaPesanan() {
 
     const summaryCounts = useMemo(
         () => ({
-            all: adminOrders.length,
-            attention: adminOrders.filter(
-                (order) => order.group === 'attention',
-            ).length,
-            process: adminOrders.filter((order) => order.group === 'process')
+            all: orders.length,
+            attention: orders.filter((order) => order.group === 'attention')
                 .length,
-            done: adminOrders.filter((order) => order.group === 'done').length,
+            process: orders.filter((order) => order.group === 'process')
+                .length,
+            done: orders.filter((order) => order.group === 'done').length,
         }),
-        [],
+        [orders],
     );
 
     const filteredOrders = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return adminOrders.filter((order) => {
+        return orders.filter((order) => {
             if (selectedGroup !== 'all' && order.group !== selectedGroup) {
                 return false;
             }
@@ -112,7 +110,14 @@ export default function PengusahaPesanan() {
                 order.payment,
             ].some((value) => value.toLowerCase().includes(keyword));
         });
-    }, [methodFilter, search, selectedGroup, sourceFilter, statusFilter]);
+    }, [
+        methodFilter,
+        orders,
+        search,
+        selectedGroup,
+        sourceFilter,
+        statusFilter,
+    ]);
 
     const totalPages = Math.max(
         1,
@@ -128,7 +133,7 @@ export default function PengusahaPesanan() {
     const allVisibleSelected =
         visibleIds.length > 0 &&
         visibleIds.every((id) => selectedIds.includes(id));
-    const selectedOrders = adminOrders.filter((order) =>
+    const selectedOrders = orders.filter((order) =>
         selectedIds.includes(order.id),
     );
 
@@ -289,7 +294,7 @@ export default function PengusahaPesanan() {
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Data tersimpan
                     </span>
                     <button
                         type="button"
@@ -680,8 +685,8 @@ export default function PengusahaPesanan() {
             </section>
 
             <p className="admin-dashboard-note">
-                Semua pesanan pada halaman ini adalah data contoh untuk
-                pratinjau tampilan manajemen pesanan.
+                Pesanan manual dan Chatbot AI tersimpan di database dan
+                diperbarui sesuai proses operasional.
             </p>
 
             {toast && (

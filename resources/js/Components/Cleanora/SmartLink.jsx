@@ -13,15 +13,32 @@ function toPathname(value) {
 }
 
 export default function SmartLink({ href, method, children, ...props }) {
-    const { url } = usePage();
+    const { url, props: pageProps } = usePage();
     const currentPath = toPathname(url);
     const hasHash = typeof href === 'string' && href.includes('#');
 
     if (method) {
+        const csrfToken = pageProps.csrf_token ?? '';
+
+        const methodName = String(method).toUpperCase();
+
         return (
-            <Link href={href} method={method} {...props}>
-                {children}
-            </Link>
+            <form
+                method="POST"
+                action={href}
+                style={{ display: 'contents' }}
+                onSubmit={(event) => {
+                    event.stopPropagation();
+                }}
+            >
+                <input type="hidden" name="_token" value={csrfToken} />
+                {methodName !== 'POST' && (
+                    <input type="hidden" name="_method" value={methodName} />
+                )}
+                <button type="submit" {...props}>
+                    {children}
+                </button>
+            </form>
         );
     }
 

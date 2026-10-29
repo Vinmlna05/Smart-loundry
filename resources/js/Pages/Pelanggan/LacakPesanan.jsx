@@ -1,93 +1,10 @@
 import '../../../css/lacak-pesanan.css';
 
 import CleanoraLayout from '@/Layouts/CleanoraLayout';
-import { Link } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { useRef } from 'react';
 
 const rupiah = (value) => `Rp${new Intl.NumberFormat('id-ID').format(value)}`;
-
-const DEMO_ORDER = {
-    number: 'LDR-20261024-0001',
-    phone: '081234567890',
-    customerName: 'Ayu',
-    service: 'Cuci dan Setrika',
-    weight: '4 kg',
-    price: 32000,
-    status: 'Menunggu pembayaran',
-    statusTone: 'warning',
-    payment: 'Belum dibayar',
-    paymentTone: 'warning',
-    method: 'Dijemput & diantar',
-    schedule: 'Sabtu, 24 Oktober 2026 · 09.00–10.00',
-    updatedAt: '25 Oktober 2026, 09.10 WIB',
-    progress: 3,
-    totalSteps: 7,
-    steps: [
-        {
-            state: 'done',
-            title: 'Pesanan dikonfirmasi',
-            time: '24 Okt 2026 · 08.15',
-            description:
-                'Pesanan LDR-20261024-0001 diterima dan masuk antrean penjemputan.',
-        },
-        {
-            state: 'done',
-            title: 'Cucian diterima dan ditimbang',
-            time: '24 Okt 2026 · 09.40',
-            description:
-                'Berat aktual 4 kg. Biaya final Rp32.000 sudah dihitung.',
-        },
-        {
-            state: 'current',
-            title: 'Menunggu pembayaran',
-            time: '25 Okt 2026 · 09.10',
-            description:
-                'Nota dan instruksi pembayaran sudah dikirim ke WhatsApp-mu. Unggah bukti transfer di halaman detail pesanan.',
-        },
-        {
-            state: 'upcoming',
-            title: 'Pembayaran lunas',
-            time: 'Menunggu verifikasi',
-            description:
-                'Status diperbarui setelah admin memverifikasi bukti transfer.',
-        },
-        {
-            state: 'upcoming',
-            title: 'Cucian diproses',
-            time: 'Belum dimulai',
-            description:
-                'Cucian masuk proses pencucian dan penyetrikaan setelah lunas.',
-        },
-        {
-            state: 'upcoming',
-            title: 'Dalam pengantaran',
-            time: 'Belum dijadwalkan',
-            description:
-                'Kurir mengantar cucian ke alamat setelah proses selesai.',
-        },
-        {
-            state: 'upcoming',
-            title: 'Diterima pelanggan',
-            time: 'Menunggu konfirmasi',
-            description:
-                'Status selesai tercatat setelah cucian kamu terima dengan baik.',
-        },
-    ],
-};
-
-const normalizePhone = (value) => {
-    const digits = value.replace(/\D/g, '');
-
-    if (digits.startsWith('62')) {
-        return `0${digits.slice(2)}`;
-    }
-
-    if (digits.startsWith('8')) {
-        return `0${digits}`;
-    }
-
-    return digits;
-};
 
 function StatusBadge({ tone = 'primary', children }) {
     return (
@@ -108,7 +25,7 @@ function SummaryCard({ order }) {
                     <strong>{order.service}</strong>
                 </div>
                 <div className="track-summary-row">
-                    <span>Berat aktual</span>
+                    <span>Berat / jumlah</span>
                     <strong>{order.weight}</strong>
                 </div>
                 <div className="track-summary-row">
@@ -116,7 +33,7 @@ function SummaryCard({ order }) {
                     <strong>{order.method}</strong>
                 </div>
                 <div className="track-summary-row">
-                    <span>Jadwal jemput</span>
+                    <span>Jadwal penyerahan</span>
                     <strong>{order.schedule}</strong>
                 </div>
                 <div className="track-summary-row">
@@ -131,13 +48,6 @@ function SummaryCard({ order }) {
                 <span>Total biaya</span>
                 <strong>{rupiah(order.price)}</strong>
             </div>
-
-            <Link
-                href={route('pelanggan.pesanan.detail', order.number)}
-                className="btn btn-primary track-detail-button"
-            >
-                Lihat detail dan nota <span aria-hidden="true">→</span>
-            </Link>
         </div>
     );
 }
@@ -241,9 +151,9 @@ function Guide() {
             <div className="track-guide-note">
                 <span aria-hidden="true">✧</span>
                 <span>
-                    Tahap pengembangan: pelacakan nyata aktif setelah pesanan
-                    tersimpan di backend. Untuk mencoba tampilan, gunakan
-                    tombol contoh pelacakan di atas.
+                    Nomor pesanan tampil setelah pesanan dikonfirmasi. Simpan
+                    nomor tersebut beserta nomor WhatsApp yang kamu pakai saat
+                    memesan.
                 </span>
             </div>
         </div>
@@ -251,7 +161,9 @@ function Guide() {
 }
 
 function TrackingResult({ order, onReset }) {
-    const percentage = (order.progress / order.totalSteps) * 100;
+    const percentage = order.totalSteps
+        ? (order.progress / order.totalSteps) * 100
+        : 0;
 
     return (
         <div className="track-result">
@@ -307,7 +219,7 @@ function TrackingResult({ order, onReset }) {
                 <ol className="track-timeline">
                     {order.steps.map((step, index) => (
                         <li
-                            key={step.title}
+                            key={`${step.title}-${index}`}
                             className={`track-step ${step.state}`}
                         >
                             <span className="track-marker" aria-hidden="true">
@@ -332,15 +244,89 @@ function TrackingResult({ order, onReset }) {
     );
 }
 
-export default function LacakPesanan() {
-    const [orderNumber, setOrderNumber] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [status, setStatus] = useState('idle');
-    const [error, setError] = useState('');
+function OrdersCard({ orders = [] }) {
+    return (
+        <section className="track-orders" aria-labelledby="track-orders-title">
+            <div className="track-orders-head">
+                <div>
+                    <span className="section-label">DAFTAR PESANAN</span>
+                    <h2 id="track-orders-title">
+                        Semua Pesanan <em>Kamu.</em>
+                    </h2>
+                    <p>
+                        Nomor pesanan di bawah bisa langsung dipakai pada
+                        formulir pelacakan di atas.
+                    </p>
+                </div>
+                <span className="track-orders-count">
+                    {orders.length} pesanan
+                </span>
+            </div>
 
+            <div className="track-orders-table-wrap">
+                <table className="track-orders-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nomor pesanan</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orders.length === 0 ? (
+                            <tr>
+                                <td colSpan={2} className="track-orders-empty">
+                                    <span aria-hidden="true">✧</span>
+                                    Belum ada pesanan. Pesanan yang kamu buat
+                                    akan muncul di sini.
+                                </td>
+                            </tr>
+                        ) : (
+                            orders.map((item) => (
+                                <tr key={item.number}>
+                                    <td>
+                                        <span className="track-order-number">
+                                            <span
+                                                className="track-order-icon"
+                                                aria-hidden="true"
+                                            >
+                                                ✦
+                                            </span>
+                                            {item.number}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <StatusBadge tone={item.tone}>
+                                            {item.status}
+                                        </StatusBadge>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
+
+export default function LacakPesanan({
+    order = null,
+    searched = false,
+    orders = [],
+    lookup = {},
+}) {
     const formRef = useRef(null);
     const orderInputRef = useRef(null);
     const resultsRef = useRef(null);
+
+    const { data, setData, post, processing, errors, clearErrors } = useForm({
+        order_number: lookup.order_number ?? '',
+        whatsapp: lookup.whatsapp ?? '',
+    });
+
+    const status = order ? 'found' : searched ? 'missing' : 'idle';
+    const errorMessage =
+        errors.order_number || errors.whatsapp || '';
 
     const revealResults = () => {
         window.setTimeout(() => {
@@ -358,47 +344,34 @@ export default function LacakPesanan() {
     const handleSubmit = (event) => {
         event.preventDefault();
 
-        const normalizedOrder = orderNumber.trim().toUpperCase();
-        const normalizedPhone = normalizePhone(phoneNumber);
-
-        if (!normalizedOrder || normalizedPhone.length < 9) {
-            setError(
-                'Lengkapi nomor pesanan dan nomor WhatsApp yang valid, lalu coba lagi.',
-            );
-            setStatus('idle');
-
-            return;
-        }
-
-        setError('');
-        setStatus(
-            normalizedOrder === DEMO_ORDER.number &&
-                normalizedPhone === DEMO_ORDER.phone
-                ? 'found'
-                : 'missing',
-        );
-        revealResults();
-    };
-
-    const handleDemo = () => {
-        setOrderNumber(DEMO_ORDER.number);
-        setPhoneNumber(DEMO_ORDER.phone);
-        setError('');
-        setStatus('found');
-        revealResults();
+        post(route('pelanggan.lacak-pesanan.cari'), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => revealResults(),
+            onError: () => {
+                formRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+            },
+        });
     };
 
     const handleReset = () => {
-        setStatus('idle');
-        setError('');
-        setOrderNumber('');
-        setPhoneNumber('');
+        setData({ order_number: '', whatsapp: '' });
+        clearErrors();
+
+        router.get(
+            route('pelanggan.lacak-pesanan'),
+            {},
+            { preserveScroll: true, preserveState: true },
+        );
+
         orderInputRef.current?.focus();
     };
 
     const handleRetry = () => {
-        setStatus('idle');
-        setError('');
+        clearErrors();
         formRef.current?.scrollIntoView({
             behavior: 'smooth',
             block: 'center',
@@ -473,18 +446,20 @@ export default function LacakPesanan() {
                                     id="order-number"
                                     ref={orderInputRef}
                                     type="text"
-                                    value={orderNumber}
+                                    value={data.order_number}
                                     onChange={(event) =>
-                                        setOrderNumber(
+                                        setData(
+                                            'order_number',
                                             event.target.value.toUpperCase(),
                                         )
                                     }
                                     placeholder="Contoh: LDR-20261024-0001"
                                     maxLength={30}
                                     autoComplete="off"
-                                    aria-invalid={Boolean(error)}
+                                    required
+                                    aria-invalid={Boolean(errors.order_number)}
                                     aria-describedby={
-                                        error ? 'track-error' : undefined
+                                        errorMessage ? 'track-error' : undefined
                                     }
                                 />
                             </div>
@@ -497,16 +472,17 @@ export default function LacakPesanan() {
                                     id="phone-number"
                                     type="tel"
                                     inputMode="tel"
-                                    value={phoneNumber}
+                                    value={data.whatsapp}
                                     onChange={(event) =>
-                                        setPhoneNumber(event.target.value)
+                                        setData('whatsapp', event.target.value)
                                     }
                                     placeholder="Contoh: 081234567890"
                                     maxLength={20}
                                     autoComplete="tel"
-                                    aria-invalid={Boolean(error)}
+                                    required
+                                    aria-invalid={Boolean(errors.whatsapp)}
                                     aria-describedby={
-                                        error ? 'track-error' : undefined
+                                        errorMessage ? 'track-error' : undefined
                                     }
                                 />
                             </div>
@@ -514,43 +490,46 @@ export default function LacakPesanan() {
                             <button
                                 type="submit"
                                 className="btn btn-primary track-submit"
+                                disabled={processing}
                             >
-                                Lacak Pesanan <span aria-hidden="true">→</span>
+                                {processing ? (
+                                    'Mencari pesanan…'
+                                ) : (
+                                    <>
+                                        Lacak Pesanan{' '}
+                                        <span aria-hidden="true">→</span>
+                                    </>
+                                )}
                             </button>
                         </form>
 
-                        {error && (
+                        {errorMessage && (
                             <div
                                 className="track-error"
                                 id="track-error"
                                 role="alert"
                             >
                                 <span aria-hidden="true">!</span>
-                                <span>{error}</span>
+                                <span>{errorMessage}</span>
                             </div>
                         )}
 
                         <div className="track-search-foot">
-                            <button
-                                type="button"
-                                className="track-demo"
-                                onClick={handleDemo}
-                            >
-                                Coba contoh pelacakan →
-                            </button>
                             <span className="track-search-note">
-                                Tahap pengembangan · data pelacakan masih
-                                simulasi.
+                                Nomor pesanan dan nomor WhatsApp harus sama
+                                dengan yang dipakai saat memesan.
                             </span>
                         </div>
                     </div>
+
+                    <OrdersCard orders={orders} />
 
                     <div className="track-results" ref={resultsRef}>
                         <div className="track-layout">
                             <div className="track-main">
                                 {status === 'found' && (
                                     <TrackingResult
-                                        order={DEMO_ORDER}
+                                        order={order}
                                         onReset={handleReset}
                                     />
                                 )}
@@ -578,13 +557,12 @@ export default function LacakPesanan() {
                                             >
                                                 Coba lagi
                                             </button>
-                                            <button
-                                                type="button"
+                                            <Link
+                                                href={route('pelanggan.pesan')}
                                                 className="btn btn-outline"
-                                                onClick={handleDemo}
                                             >
-                                                Gunakan contoh
-                                            </button>
+                                                Buat pesanan baru
+                                            </Link>
                                         </div>
                                     </div>
                                 )}
@@ -595,7 +573,7 @@ export default function LacakPesanan() {
                             <aside className="track-aside">
                                 {status === 'found' ? (
                                     <>
-                                        <SummaryCard order={DEMO_ORDER} />
+                                        <SummaryCard order={order} />
                                         <HelpCard />
                                     </>
                                 ) : (

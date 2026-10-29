@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\OrderStatus;
+use App\Models\Customer;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -34,6 +37,32 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'flash' => [
+                'status' => fn () => $request->session()->get('status'),
+            ],
+            'csrf_token' => $request->session()->token(),
+            'navCounts' => fn (): ?array => $request->user()?->role === 'pengusaha'
+                ? [
+                    'orders' => Order::query()
+                        ->where('status', '!=', OrderStatus::Dibatalkan->value)
+                        ->count(),
+                    'attention' => Order::query()
+                        ->whereIn('status', [
+                            OrderStatus::Draft->value,
+                            OrderStatus::Terkonfirmasi->value,
+                            OrderStatus::MenungguPenjemputan->value,
+                            OrderStatus::MenungguAntaranPelanggan->value,
+                            OrderStatus::Diterima->value,
+                            OrderStatus::Ditimbang->value,
+                            OrderStatus::MenungguPembayaran->value,
+                        ])
+                        ->count(),
+                    'payments' => Order::query()
+                        ->where('status', OrderStatus::MenungguPembayaran->value)
+                        ->count(),
+                    'customers' => Customer::query()->count(),
+                ]
+                : null,
         ];
     }
 }

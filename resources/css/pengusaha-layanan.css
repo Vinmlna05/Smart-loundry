@@ -439,3 +439,110 @@
         transition: none;
     }
 }
+
+.admin-service-form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+.admin-service-form .admin-drawer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-service-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-service-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-service-field > span {
+    color: var(--text, #12303a);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.admin-service-field input,
+.admin-service-field select,
+.admin-service-field textarea {
+    width: 100%;
+    border: 1px solid var(--border, #d9e6e8);
+    border-radius: 8px;
+    background: var(--surface, #ffffff);
+    color: var(--text, #12303a);
+    font: inherit;
+    font-size: 13.5px;
+    padding: 10px 12px;
+}
+
+.admin-service-field input:focus,
+.admin-service-field select:focus,
+.admin-service-field textarea:focus {
+    outline: none;
+    border-color: var(--primary, #0b7a85);
+    box-shadow: 0 0 0 3px rgba(11, 122, 133, 0.14);
+}
+
+.admin-service-field textarea {
+    resize: vertical;
+    min-height: 78px;
+}
+
+.admin-service-error {
+    color: var(--danger, #c94b4b);
+    font-size: 12px;
+}
+
+.admin-service-switches {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border, #d9e6e8);
+    border-radius: 10px;
+    background: var(--bg, #f4fafa);
+}
+
+.admin-service-switches label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.admin-service-switches input {
+    margin-top: 3px;
+    accent-color: var(--primary, #0b7a85);
+}
+
+.admin-service-switches span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-service-switches strong {
+    color: var(--text, #12303a);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-service-switches small {
+    color: var(--text-muted, #4f6670);
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .admin-service-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

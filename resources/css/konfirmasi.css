@@ -445,6 +445,28 @@
     color: var(--teal);
 }
 
+.cleanora-confirm-page .confirm-error {
+    margin-top: 15px;
+    padding: 12px 14px;
+    border: 1px solid #efc9c9;
+    border-radius: 9px;
+    background: #fdf2f2;
+}
+
+.cleanora-confirm-page .confirm-error strong {
+    display: block;
+    color: #a33b3b;
+    font-size: 10.5px;
+}
+
+.cleanora-confirm-page .confirm-error ul {
+    margin: 6px 0 0;
+    padding-left: 17px;
+    color: #a33b3b;
+    font-size: 9.5px;
+    line-height: 1.7;
+}
+
 .cleanora-confirm-page .confirm-agreement {
     margin-top: 15px;
     padding-top: 15px;

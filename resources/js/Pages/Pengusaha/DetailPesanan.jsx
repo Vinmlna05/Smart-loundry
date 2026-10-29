@@ -2,17 +2,14 @@ import '../../../css/pengusaha-detail.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminOrders,
     formatRupiah,
     initialsOf,
     orderStatusTone,
     paymentTone,
     whatsappLink,
 } from '@/Data/adminOrders';
-import { adminPayments } from '@/Data/adminPayments';
-import { adminServices } from '@/Data/adminServices';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 const STAGES = [
@@ -61,20 +58,32 @@ const STAGES = [
 ];
 
 const STATUS_STAGE = {
+    Draft: 0,
+    Terkonfirmasi: 0,
     'Menunggu penjemputan': 0,
+    'Menunggu antaran pelanggan': 0,
     'Perlu ditimbang': 1,
+    Ditimbang: 2,
     'Menunggu pembayaran': 3,
+    Lunas: 4,
+    'Siap diproses': 4,
     'Sedang dicuci': 4,
+    'Selesai dicuci': 5,
     'Siap diambil': 5,
+    'Dalam pengantaran': 5,
+    'Diterima pelanggan': 6,
     Selesai: 6,
+    Dibatalkan: 0,
 };
 
 const ACTION_META = {
     'Menunggu penjemputan': { icon: 'truck', tone: 'is-blue' },
+    'Menunggu antaran pelanggan': { icon: 'package', tone: 'is-blue' },
     'Perlu ditimbang': { icon: 'reports', tone: 'is-gold' },
     'Menunggu pembayaran': { icon: 'payments', tone: 'is-gold' },
     'Sedang dicuci': { icon: 'spark', tone: 'is-teal' },
     'Siap diambil': { icon: 'check', tone: 'is-green' },
+    'Dalam pengantaran': { icon: 'truck', tone: 'is-blue' },
     Selesai: { icon: 'check', tone: 'is-green' },
     Dibatalkan: { icon: 'alert', tone: 'is-danger' },
 };
@@ -119,23 +128,13 @@ const addMinutes = (time, minutes) => {
     ).padStart(2, '0')}`;
 };
 
-const createProcessState = (order, paymentRecord) => {
-    const estimatedWeight = weightValue(order.weight);
-    const hasFinalWeight =
-        order.step >= 2 && order.status !== 'Dibatalkan';
-    const paymentMethod =
-        paymentRecord?.method && paymentRecord.method !== 'Belum ditagih'
-            ? paymentRecord.method
-            : 'Belum dipilih';
-
-    return {
-        status: order.status,
-        payment: paymentRecord?.status ?? order.payment,
-        paymentMethod,
-        actualWeight: hasFinalWeight ? estimatedWeight : null,
-        finalPrice: hasFinalWeight ? order.total : null,
-    };
-};
+const createProcessState = (order) => ({
+    status: order.status,
+    payment: order.payment,
+    paymentMethod: order.paymentMethod ?? 'Transfer bank',
+    actualWeight: order.actualWeight ?? null,
+    finalPrice: order.finalPrice ?? null,
+});
 
 function NotFound({ nomorPesanan }) {
     return (
@@ -167,38 +166,32 @@ function NotFound({ nomorPesanan }) {
 }
 
 function OrderDetailContent({ order }) {
-    const paymentRecord = adminPayments.find(
-        (payment) => payment.orderId === order.id,
-    );
-    const initialProcess = createProcessState(order, paymentRecord);
+    const initialProcess = createProcessState(order);
     const [process, setProcess] = useState(initialProcess);
     const [weightInput, setWeightInput] = useState(
-        String(weightValue(order.weight)),
+        String(order.actualWeight ?? order.estimatedWeight ?? ''),
     );
     const [weightError, setWeightError] = useState('');
     const [paymentMethod, setPaymentMethod] = useState(
-        initialProcess.paymentMethod !== 'Belum dipilih'
-            ? initialProcess.paymentMethod
-            : 'Transfer bank',
+        initialProcess.paymentMethod || 'Transfer bank',
     );
     const [cancelConfirm, setCancelConfirm] = useState(false);
     const [toast, setToast] = useState('');
 
-    const estimatedWeight = weightValue(order.weight);
-    const service = adminServices.find(
-        (item) => item.name === order.service,
-    );
-    const unitPrice = service?.price
-        ? service.price
-        : estimatedWeight > 0
-          ? Math.round(order.total / estimatedWeight)
-          : order.total;
-    const minimumWeight = Number.parseFloat(service?.minimum) || 0.1;
+    const estimatedWeight =
+        Number(order.estimatedWeight) || weightValue(order.weight);
+    const unitPrice =
+        Number(order.unitPrice) ||
+        (estimatedWeight > 0
+            ? Math.round(order.total / estimatedWeight)
+            : order.total);
+    const minimumWeight = Number(order.minimum) || 0.1;
     const location = order.address ?? order.outlet ?? 'Belum ditentukan';
     const isCanceled = process.status === 'Dibatalkan';
     const isFinished = process.status === 'Selesai';
     const canCancel = [
         'Menunggu penjemputan',
+        'Menunggu antaran pelanggan',
         'Perlu ditimbang',
         'Menunggu pembayaran',
     ].includes(process.status);
@@ -234,13 +227,36 @@ function OrderDetailContent({ order }) {
         return () => window.clearTimeout(timeout);
     }, [toast]);
 
+    useEffect(() => {
+        const next = createProcessState(order);
+
+        setProcess(next);
+        setWeightInput(String(next.actualWeight ?? order.estimatedWeight ?? ''));
+        setPaymentMethod(next.paymentMethod || 'Transfer bank');
+    }, [order]);
+
+    const submitAction = (routeName, payload, successMessage) => {
+        router.patch(route(routeName, order.id), payload, {
+            preserveScroll: true,
+            onSuccess: (page) =>
+                setToast(page.props.flash?.status ?? successMessage),
+            onError: (errors) => {
+                const message = Object.values(errors)[0];
+
+                if (routeName === 'pengusaha.pesanan.timbang') {
+                    setWeightError(message);
+                } else if (message) {
+                    setToast(message);
+                }
+            },
+        });
+    };
+
     const confirmPickup = () => {
-        setProcess((previous) => ({
-            ...previous,
-            status: 'Perlu ditimbang',
-        }));
-        setToast(
-            'Cucian ditandai diterima. Lanjutkan dengan penimbangan (pratinjau lokal).',
+        submitAction(
+            'pengusaha.pesanan.terima',
+            {},
+            'Cucian ditandai diterima.',
         );
     };
 
@@ -270,61 +286,44 @@ function OrderDetailContent({ order }) {
         }
 
         setWeightError('');
-        const finalPrice = Math.round(unitPrice * parsedWeight);
-
-        setProcess((previous) => ({
-            ...previous,
-            actualWeight: parsedWeight,
-            finalPrice,
-            status: 'Menunggu pembayaran',
-            payment: 'Belum dibayar',
-            paymentMethod: 'Belum dipilih',
-        }));
-        setToast(
-            `Berat ${formatWeight(
-                parsedWeight,
-            )} kg disimpan dan nota dibuat (pratinjau lokal).`,
+        submitAction(
+            'pengusaha.pesanan.timbang',
+            { actual_weight: parsedWeight },
+            'Berat aktual disimpan dan nota dibuat.',
         );
     };
 
     const confirmPayment = () => {
-        setProcess((previous) => ({
-            ...previous,
-            payment: 'Lunas',
-            paymentMethod,
-            status: 'Sedang dicuci',
-        }));
-        setToast(
-            'Pembayaran dikonfirmasi. Pesanan masuk ke proses pencucian (pratinjau lokal).',
+        submitAction(
+            'pengusaha.pesanan.bayar',
+            { payment_method: paymentMethod },
+            'Pembayaran dikonfirmasi.',
         );
     };
 
     const markReady = () => {
-        setProcess((previous) => ({
-            ...previous,
-            status: 'Siap diambil',
-        }));
-        setToast(
-            'Pesanan ditandai siap diambil. Pelanggan dapat dihubungi (pratinjau lokal).',
+        submitAction(
+            'pengusaha.pesanan.siap',
+            {},
+            'Pesanan ditandai siap diambil.',
         );
     };
 
     const markReceived = () => {
-        setProcess((previous) => ({
-            ...previous,
-            status: 'Selesai',
-        }));
-        setToast('Pesanan ditandai selesai (pratinjau lokal).');
+        submitAction(
+            'pengusaha.pesanan.selesai',
+            {},
+            'Pesanan ditandai selesai.',
+        );
     };
 
     const cancelOrder = () => {
-        setProcess((previous) => ({
-            ...previous,
-            payment: 'Tidak perlu bayar',
-            status: 'Dibatalkan',
-        }));
         setCancelConfirm(false);
-        setToast('Pesanan dibatalkan (pratinjau lokal).');
+        submitAction(
+            'pengusaha.pesanan.batalkan',
+            {},
+            'Pesanan dibatalkan.',
+        );
     };
 
     const historyDetails = [
@@ -434,7 +433,7 @@ function OrderDetailContent({ order }) {
                     <div className="admin-head-actions">
                         <span className="admin-sample-badge">
                             <span aria-hidden="true" />
-                            Data contoh
+                            Data tersimpan
                         </span>
                         {customerWhatsApp && (
                             <a
@@ -455,20 +454,6 @@ function OrderDetailContent({ order }) {
                             <AdminIcon name="printer" size={15} />
                             Cetak nota
                         </button>
-                    </div>
-                </div>
-
-                <div className="order-preview-note" role="note">
-                    <span className="order-preview-icon">
-                        <AdminIcon name="alert" size={15} />
-                    </span>
-                    <div>
-                        <strong>Mode pratinjau frontend</strong>
-                        <p>
-                            Perubahan status, berat, dan pembayaran hanya
-                            berlaku di halaman ini dan belum disimpan ke
-                            database.
-                        </p>
                     </div>
                 </div>
 
@@ -679,7 +664,9 @@ function OrderDetailContent({ order }) {
                             <div className="order-costs">
                                 <div className="order-cost-row">
                                     <span>Estimasi awal</span>
-                                    <strong>{money(order.total)}</strong>
+                                    <strong>
+                                        {money(order.estimatedPrice)}
+                                    </strong>
                                 </div>
                                 <div className="order-cost-row">
                                     <span>Berat aktual</span>
@@ -768,6 +755,9 @@ function OrderDetailContent({ order }) {
                                     <h2>
                                         {process.status === 'Menunggu penjemputan' &&
                                             'Konfirmasi penjemputan'}
+                                        {process.status ===
+                                            'Menunggu antaran pelanggan' &&
+                                            'Konfirmasi cucian diterima'}
                                         {process.status === 'Perlu ditimbang' &&
                                             'Timbang cucian'}
                                         {process.status ===
@@ -777,6 +767,8 @@ function OrderDetailContent({ order }) {
                                             'Selesaikan pencucian'}
                                         {process.status === 'Siap diambil' &&
                                             'Serahkan cucian'}
+                                        {process.status === 'Dalam pengantaran' &&
+                                            'Konfirmasi pengantaran'}
                                         {process.status === 'Selesai' &&
                                             'Pesanan selesai'}
                                         {process.status === 'Dibatalkan' &&
@@ -800,6 +792,38 @@ function OrderDetailContent({ order }) {
                                             </div>
                                             <div>
                                                 <span>Alamat jemput</span>
+                                                <strong>{location}</strong>
+                                            </div>
+                                        </div>
+                                        <div className="order-action-note">
+                                            <AdminIcon name="orders" size={14} />
+                                            <span>{order.note}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="admin-button admin-button-primary"
+                                            onClick={confirmPickup}
+                                        >
+                                            Tandai cucian diterima
+                                        </button>
+                                    </>
+                                )}
+
+                                {process.status ===
+                                    'Menunggu antaran pelanggan' && (
+                                    <>
+                                        <p className="order-action-copy">
+                                            Konfirmasi setelah pelanggan
+                                            mengantar cucian ke outlet agar
+                                            pesanan dapat ditimbang.
+                                        </p>
+                                        <div className="order-action-facts">
+                                            <div>
+                                                <span>Metode</span>
+                                                <strong>{order.intake}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Lokasi</span>
                                                 <strong>{location}</strong>
                                             </div>
                                         </div>
@@ -884,8 +908,8 @@ function OrderDetailContent({ order }) {
                                         </button>
                                         <p className="order-action-hint">
                                             Estimasi awal{' '}
-                                            {money(order.total)} tetap disimpan
-                                            sebagai pembanding.
+                                            {money(order.estimatedPrice)} tetap
+                                            disimpan sebagai pembanding.
                                         </p>
                                     </>
                                 )}
@@ -942,7 +966,7 @@ function OrderDetailContent({ order }) {
                                             className="admin-button admin-button-outline"
                                             onClick={() =>
                                                 setToast(
-                                                    'Pengingat pembayaran disiapkan untuk dikirim via WhatsApp (pratinjau lokal).',
+                                                    'Pengingat pembayaran disiapkan untuk dikirim via WhatsApp.',
                                                 )
                                             }
                                         >
@@ -999,6 +1023,33 @@ function OrderDetailContent({ order }) {
                                         <div className="order-action-facts">
                                             <div>
                                                 <span>Penyerahan</span>
+                                                <strong>{location}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Pembayaran</span>
+                                                <strong>{process.payment}</strong>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="admin-button admin-button-primary"
+                                            onClick={markReceived}
+                                        >
+                                            Konfirmasi cucian diterima
+                                        </button>
+                                    </>
+                                )}
+
+                                {process.status === 'Dalam pengantaran' && (
+                                    <>
+                                        <p className="order-action-copy">
+                                            Kurir sedang mengantar cucian.
+                                            Konfirmasi setelah pelanggan
+                                            benar-benar menerima pesanan.
+                                        </p>
+                                        <div className="order-action-facts">
+                                            <div>
+                                                <span>Tujuan</span>
                                                 <strong>{location}</strong>
                                             </div>
                                             <div>
@@ -1161,7 +1212,7 @@ function OrderDetailContent({ order }) {
                                     </div>
                                     <div>
                                         <dt>Estimasi awal</dt>
-                                        <dd>{money(order.total)}</dd>
+                                        <dd>{money(order.estimatedPrice)}</dd>
                                     </div>
                                 </dl>
                                 <p className="order-payment-note">
@@ -1230,8 +1281,8 @@ function OrderDetailContent({ order }) {
                 </div>
 
                 <p className="admin-dashboard-note order-detail-note">
-                    Data contoh untuk pratinjau. Perubahan pada halaman ini
-                    belum tersimpan ke database.
+                    Setiap tindakan pada halaman ini langsung menyimpan
+                    perubahan status, berat, dan pembayaran ke database.
                 </p>
             </div>
 
@@ -1247,12 +1298,10 @@ function OrderDetailContent({ order }) {
     );
 }
 
-export default function PengusahaDetailPesanan({ nomorPesanan }) {
-    const order = adminOrders.find((item) => item.id === nomorPesanan);
-
+export default function PengusahaDetailPesanan({ order }) {
     if (!order) {
-        return <NotFound nomorPesanan={nomorPesanan} />;
+        return <NotFound nomorPesanan="-" />;
     }
 
-    return <OrderDetailContent key={order.id} order={order} />;
+    return <OrderDetailContent order={order} />;
 }

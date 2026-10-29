@@ -2,8 +2,6 @@ import '../../css/pelanggan.css';
 import '../../css/pengusaha.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
-import { adminCustomers } from '@/Data/adminCustomers';
-import { adminOrders } from '@/Data/adminOrders';
 import {
     loadPengusahaProfile,
     PENGUSAHA_PROFILE_EVENT,
@@ -42,7 +40,8 @@ export default function PengusahaLayout({
     breadcrumb = 'Ringkasan',
     children,
 }) {
-    const user = usePage().props.auth.user;
+    const { auth, navCounts } = usePage().props;
+    const user = auth.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(
         loadPengusahaProfile,
@@ -56,9 +55,7 @@ export default function PengusahaLayout({
     const chatbotHref = route('pengusaha.chatbot');
     const profileHref = route('profile.edit');
     const logoutHref = route('logout');
-    const attentionCount = adminOrders.filter(
-        (order) => order.group === 'attention',
-    ).length;
+    const attentionCount = navCounts?.attention ?? 0;
 
     const navGroups = useMemo(
         () => [
@@ -78,7 +75,7 @@ export default function PengusahaLayout({
                         icon: 'orders',
                         href: ordersHref,
                         active: active === 'orders',
-                        badge: String(adminOrders.length),
+                        badge: String(navCounts?.orders ?? 0),
                     },
                     {
                         key: 'customers',
@@ -86,7 +83,7 @@ export default function PengusahaLayout({
                         icon: 'customers',
                         href: customersHref,
                         active: active === 'customers',
-                        badge: String(adminCustomers.length),
+                        badge: String(navCounts?.customers ?? 0),
                     },
                 ],
             },
@@ -106,12 +103,7 @@ export default function PengusahaLayout({
                         icon: 'payments',
                         href: paymentsHref,
                         active: active === 'payments',
-                        badge: String(
-                            adminOrders.filter(
-                                (order) =>
-                                    order.status === 'Menunggu pembayaran',
-                            ).length,
-                        ),
+                        badge: String(navCounts?.payments ?? 0),
                     },
                     {
                         key: 'reports',
@@ -147,6 +139,7 @@ export default function PengusahaLayout({
             chatbotHref,
             customersHref,
             dashboardHref,
+            navCounts,
             ordersHref,
             paymentsHref,
             profileHref,

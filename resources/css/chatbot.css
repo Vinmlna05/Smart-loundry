@@ -1053,3 +1053,22 @@
         display: none;
     }
 }
+
+.cleanora-chat-page .chat-transcript {
+    margin: 6px 0 0;
+    padding: 0 2px;
+    color: var(--text-muted, #4f6670);
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.5;
+}
+.cleanora-chat-page .chat-manual-link {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 8px;
+    color: var(--primary, #0b7a85);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: underline;
+}
+

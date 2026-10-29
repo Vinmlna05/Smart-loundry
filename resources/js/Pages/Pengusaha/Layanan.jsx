@@ -2,13 +2,12 @@ import '../../../css/pengusaha-layanan.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminItemPrices,
-    adminServices,
     serviceCategories,
     serviceCategoryConfig,
 } from '@/Data/adminServices';
 import { formatRupiah } from '@/Data/adminOrders';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
+import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
 const categoryOrder = {
@@ -18,23 +17,37 @@ const categoryOrder = {
 };
 
 const formatTanggal = (value) =>
-    new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    }).format(new Date(`${value}T12:00:00`));
+    value
+        ? new Intl.DateTimeFormat('id-ID', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+          }).format(new Date(`${value}T12:00:00`))
+        : 'Baru saja';
 
 const priceLabel = (service) =>
     service.price === 0 ? 'Gratis' : formatRupiah(service.price);
 
-export default function PengusahaLayanan() {
-    const [serviceList, setServiceList] = useState(adminServices);
+export default function PengusahaLayanan({ services = [] }) {
+    const { flash, errors } = usePage().props;
+    const [serviceList, setServiceList] = useState(services);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('category');
     const [selectedServiceId, setSelectedServiceId] = useState(null);
+    const [formMode, setFormMode] = useState(null);
     const [toast, setToast] = useState('');
+
+    useEffect(() => {
+        setServiceList(services);
+    }, [services]);
+
+    useEffect(() => {
+        if (flash?.status) {
+            setToast(flash.status);
+        }
+    }, [flash?.status]);
 
     const activeCount = serviceList.filter(
         (service) => service.active,
@@ -43,6 +56,13 @@ export default function PengusahaLayanan() {
     const selectedService =
         serviceList.find((service) => service.id === selectedServiceId) ??
         null;
+    const satuanServices = useMemo(
+        () =>
+            serviceList.filter(
+                (service) => service.category === 'satuan',
+            ),
+        [serviceList],
+    );
 
     const summaryItems = useMemo(
         () => [
@@ -189,17 +209,15 @@ export default function PengusahaLayanan() {
             return;
         }
 
-        setServiceList((previous) =>
-            previous.map((item) =>
-                item.id === serviceId
-                    ? { ...item, active: !item.active }
-                    : item,
-            ),
-        );
-        setToast(
-            `${service.name} ${
-                service.active ? 'dinonaktifkan' : 'diaktifkan'
-            } pada pratinjau lokal.`,
+        router.patch(
+            route('pengusaha.layanan.update', service.id),
+            { is_active: !service.active },
+            {
+                preserveScroll: true,
+                onError: () => {
+                    setToast('Status layanan gagal diperbarui.');
+                },
+            },
         );
     };
 
@@ -283,7 +301,7 @@ export default function PengusahaLayanan() {
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Tersimpan di database
                     </span>
                     <button
                         type="button"
@@ -292,6 +310,14 @@ export default function PengusahaLayanan() {
                     >
                         <AdminIcon name="download" size={16} />
                         Unduh daftar tarif
+                    </button>
+                    <button
+                        type="button"
+                        className="admin-button admin-button-primary"
+                        onClick={() => setFormMode('create')}
+                    >
+                        <span aria-hidden="true">+</span>
+                        Tambah layanan
                     </button>
                 </div>
             </div>
@@ -588,7 +614,7 @@ export default function PengusahaLayanan() {
                         </p>
                     </div>
                     <span className="admin-orders-count">
-                        {adminItemPrices.length} item
+                        {satuanServices.length} item
                     </span>
                 </div>
 
@@ -600,11 +626,14 @@ export default function PengusahaLayanan() {
                                 <th scope="col">Keterangan</th>
                                 <th scope="col">Satuan</th>
                                 <th scope="col">Tarif</th>
+                                <th scope="col">
+                                    <span className="sr-only">Aksi</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {adminItemPrices.map((item) => (
-                                <tr key={item.name}>
+                            {satuanServices.map((item) => (
+                                <tr key={item.id}>
                                     <td data-label="Jenis item">
                                         <strong className="admin-item-name">
                                             {item.name}
@@ -612,12 +641,12 @@ export default function PengusahaLayanan() {
                                     </td>
                                     <td data-label="Keterangan">
                                         <span className="admin-item-note">
-                                            {item.note}
+                                            {item.description || '-'}
                                         </span>
                                     </td>
                                     <td data-label="Satuan">
                                         <span className="admin-service-minimum">
-                                            {item.unit}
+                                            per {item.unit}
                                         </span>
                                     </td>
                                     <td data-label="Tarif">
@@ -625,11 +654,32 @@ export default function PengusahaLayanan() {
                                             {formatRupiah(item.price)}
                                         </strong>
                                     </td>
+                                    <td data-label="Aksi">
+                                        <button
+                                            type="button"
+                                            className="admin-detail-button"
+                                            onClick={() =>
+                                                setSelectedServiceId(item.id)
+                                            }
+                                        >
+                                            Detail
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+
+                {satuanServices.length === 0 && (
+                    <div className="admin-empty">
+                        <strong>Belum ada tarif satuan.</strong>
+                        <p>
+                            Tambahkan layanan berkategori satuan untuk
+                            menampilkan tarif per item.
+                        </p>
+                    </div>
+                )}
 
                 <p className="admin-item-price-note">
                     <AdminIcon name="alert" size={14} />
@@ -639,9 +689,8 @@ export default function PengusahaLayanan() {
             </section>
 
             <p className="admin-dashboard-note">
-                Semua layanan dan tarif pada halaman ini adalah data contoh.
-                Perubahan status hanya berlaku pada pratinjau lokal dan belum
-                tersimpan ke backend.
+                Semua perubahan layanan dan tarif langsung tersimpan ke
+                database dan dipakai halaman pelanggan serta chatbot AI.
             </p>
 
             {selectedService && (
@@ -649,6 +698,19 @@ export default function PengusahaLayanan() {
                     service={selectedService}
                     onClose={() => setSelectedServiceId(null)}
                     onToggle={() => toggleService(selectedService.id)}
+                    onEdit={() => {
+                        setSelectedServiceId(null);
+                        setFormMode(selectedService);
+                    }}
+                />
+            )}
+
+            {formMode && (
+                <ServiceFormDrawer
+                    key={formMode === 'create' ? 'create' : formMode.id}
+                    service={formMode === 'create' ? null : formMode}
+                    errors={errors}
+                    onClose={() => setFormMode(null)}
                 />
             )}
 
@@ -664,7 +726,7 @@ export default function PengusahaLayanan() {
     );
 }
 
-function ServiceDrawer({ service, onClose, onToggle }) {
+function ServiceDrawer({ service, onClose, onToggle, onEdit }) {
     const category = serviceCategoryConfig[service.category];
 
     return (
@@ -790,10 +852,17 @@ function ServiceDrawer({ service, onClose, onToggle }) {
 
                 <div className="admin-drawer-foot admin-service-drawer-foot">
                     <p>
-                        Data contoh untuk pratinjau. Tarif dan status belum
-                        tersimpan ke backend.
+                        Perubahan tarif dan status langsung dipakai halaman
+                        pelanggan serta chatbot AI.
                     </p>
                     <div className="admin-service-drawer-actions">
+                        <button
+                            type="button"
+                            className="admin-button admin-button-primary"
+                            onClick={onEdit}
+                        >
+                            Edit layanan
+                        </button>
                         <button
                             type="button"
                             className={`admin-button ${
@@ -814,6 +883,353 @@ function ServiceDrawer({ service, onClose, onToggle }) {
                         </button>
                     </div>
                 </div>
+            </aside>
+        </div>
+    );
+}
+
+function ServiceFormDrawer({ service, errors = {}, onClose }) {
+    const [form, setForm] = useState(() => ({
+        name: service?.name ?? '',
+        category: service?.category ?? 'kiloan',
+        description: service?.description ?? '',
+        unit: service?.unit ?? 'kg',
+        price: service?.price ?? 0,
+        min_quantity: service?.minQuantity ?? 1,
+        step_quantity: service?.stepQuantity ?? 0.5,
+        estimated_hours: service?.estimatedHours ?? 24,
+        is_starting_at: service?.startingAt ?? false,
+        is_active: service?.active ?? true,
+    }));
+    const [processing, setProcessing] = useState(false);
+
+    const update = (key, value) => {
+        setForm((previous) => ({ ...previous, [key]: value }));
+    };
+
+    const submit = (event) => {
+        event.preventDefault();
+        setProcessing(true);
+
+        const payload = {
+            ...form,
+            price: Number(form.price) || 0,
+            min_quantity: Number(form.min_quantity) || 0.1,
+            step_quantity: Number(form.step_quantity) || 0.1,
+            estimated_hours:
+                form.estimated_hours === ''
+                    ? null
+                    : Number(form.estimated_hours),
+        };
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => onClose(),
+            onFinish: () => setProcessing(false),
+        };
+
+        if (service) {
+            router.patch(
+                route('pengusaha.layanan.update', service.id),
+                payload,
+                options,
+            );
+
+            return;
+        }
+
+        router.post(route('pengusaha.layanan.store'), payload, options);
+    };
+
+    return (
+        <div
+            className="admin-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-service-form-title"
+        >
+            <button
+                type="button"
+                className="admin-drawer-backdrop"
+                aria-label="Tutup formulir layanan"
+                onClick={onClose}
+            />
+
+            <aside className="admin-drawer-panel admin-service-panel">
+                <div className="admin-drawer-head">
+                    <div>
+                        <span className="admin-card-label">
+                            {service ? 'EDIT LAYANAN' : 'LAYANAN BARU'}
+                        </span>
+                        <h2 id="admin-service-form-title">
+                            {service ? service.name : 'Tambah layanan'}
+                        </h2>
+                    </div>
+                    <button
+                        type="button"
+                        className="admin-icon-button"
+                        aria-label="Tutup formulir layanan"
+                        onClick={onClose}
+                    >
+                        <AdminIcon name="close" size={18} />
+                    </button>
+                </div>
+
+                <form
+                    id="admin-service-form"
+                    className="admin-service-form"
+                    onSubmit={submit}
+                >
+                    <div className="admin-drawer-body">
+                        <label className="admin-service-field">
+                            <span>Nama layanan</span>
+                            <input
+                                type="text"
+                                value={form.name}
+                                maxLength={100}
+                                onChange={(event) =>
+                                    update('name', event.target.value)
+                                }
+                                placeholder="Contoh: Cuci Selimut"
+                                required
+                            />
+                            {errors.name && (
+                                <small className="admin-service-error">
+                                    {errors.name}
+                                </small>
+                            )}
+                        </label>
+
+                        <div className="admin-service-form-grid">
+                            <label className="admin-service-field">
+                                <span>Kategori</span>
+                                <select
+                                    value={form.category}
+                                    onChange={(event) =>
+                                        update('category', event.target.value)
+                                    }
+                                >
+                                    {serviceCategories.map((category) => (
+                                        <option
+                                            key={category.value}
+                                            value={category.value}
+                                        >
+                                            {category.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.category && (
+                                    <small className="admin-service-error">
+                                        {errors.category}
+                                    </small>
+                                )}
+                            </label>
+
+                            <label className="admin-service-field">
+                                <span>Satuan</span>
+                                <input
+                                    type="text"
+                                    value={form.unit}
+                                    maxLength={20}
+                                    list="service-unit-options"
+                                    onChange={(event) =>
+                                        update('unit', event.target.value)
+                                    }
+                                    placeholder="kg, pcs, pasang..."
+                                    required
+                                />
+                                <datalist id="service-unit-options">
+                                    <option value="kg" />
+                                    <option value="pcs" />
+                                    <option value="pasang" />
+                                    <option value="potong" />
+                                    <option value="buah" />
+                                </datalist>
+                                {errors.unit && (
+                                    <small className="admin-service-error">
+                                        {errors.unit}
+                                    </small>
+                                )}
+                            </label>
+                        </div>
+
+                        <label className="admin-service-field">
+                            <span>Deskripsi</span>
+                            <textarea
+                                rows={3}
+                                maxLength={500}
+                                value={form.description}
+                                onChange={(event) =>
+                                    update('description', event.target.value)
+                                }
+                                placeholder="Jelaskan layanan dan ketentuannya."
+                            />
+                            {errors.description && (
+                                <small className="admin-service-error">
+                                    {errors.description}
+                                </small>
+                            )}
+                        </label>
+
+                        <div className="admin-service-form-grid">
+                            <label className="admin-service-field">
+                                <span>Tarif per satuan (Rp)</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={10000000}
+                                    step={500}
+                                    value={form.price}
+                                    onChange={(event) =>
+                                        update('price', event.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.price && (
+                                    <small className="admin-service-error">
+                                        {errors.price}
+                                    </small>
+                                )}
+                            </label>
+
+                            <label className="admin-service-field">
+                                <span>Estimasi pengerjaan (jam)</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={720}
+                                    value={form.estimated_hours}
+                                    onChange={(event) =>
+                                        update(
+                                            'estimated_hours',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                {errors.estimated_hours && (
+                                    <small className="admin-service-error">
+                                        {errors.estimated_hours}
+                                    </small>
+                                )}
+                            </label>
+
+                            <label className="admin-service-field">
+                                <span>Jumlah minimal</span>
+                                <input
+                                    type="number"
+                                    min={0.1}
+                                    max={100}
+                                    step={0.1}
+                                    value={form.min_quantity}
+                                    onChange={(event) =>
+                                        update(
+                                            'min_quantity',
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                                {errors.min_quantity && (
+                                    <small className="admin-service-error">
+                                        {errors.min_quantity}
+                                    </small>
+                                )}
+                            </label>
+
+                            <label className="admin-service-field">
+                                <span>Kelipatan jumlah</span>
+                                <input
+                                    type="number"
+                                    min={0.1}
+                                    max={100}
+                                    step={0.1}
+                                    value={form.step_quantity}
+                                    onChange={(event) =>
+                                        update(
+                                            'step_quantity',
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                                {errors.step_quantity && (
+                                    <small className="admin-service-error">
+                                        {errors.step_quantity}
+                                    </small>
+                                )}
+                            </label>
+                        </div>
+
+                        <div className="admin-service-switches">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={form.is_active}
+                                    onChange={(event) =>
+                                        update(
+                                            'is_active',
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                <span>
+                                    <strong>Tampilkan ke pelanggan</strong>
+                                    <small>
+                                        Layanan aktif muncul di halaman
+                                        pelanggan dan chatbot.
+                                    </small>
+                                </span>
+                            </label>
+
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={form.is_starting_at}
+                                    onChange={(event) =>
+                                        update(
+                                            'is_starting_at',
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                <span>
+                                    <strong>Tarif mulai dari</strong>
+                                    <small>
+                                        Tandai jika harga bisa berubah sesuai
+                                        ukuran atau bahan.
+                                    </small>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="admin-drawer-foot admin-service-drawer-foot">
+                        <p>
+                            Tarif disimpan sebagai rupiah dan langsung dipakai
+                            chatbot tanpa menebak harga.
+                        </p>
+                        <div className="admin-service-drawer-actions">
+                            <button
+                                type="button"
+                                className="admin-button admin-button-outline"
+                                onClick={onClose}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="submit"
+                                className="admin-button admin-button-primary"
+                                disabled={processing}
+                            >
+                                {processing
+                                    ? 'Menyimpan...'
+                                    : service
+                                      ? 'Simpan perubahan'
+                                      : 'Tambah layanan'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </aside>
         </div>
     );

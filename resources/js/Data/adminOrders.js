@@ -242,11 +242,20 @@ export const adminOrders = [
 export const dashboardOrders = adminOrders.slice(0, 6);
 
 export const orderStatusTone = {
-    'Menunggu penjemputan': 'is-info',
+    Draft: 'is-info',
+    Terkonfirmasi: 'is-info',
+    'Menunggu penjemputan': 'is-warning',
+    'Menunggu antaran pelanggan': 'is-warning',
     'Perlu ditimbang': 'is-info',
+    Ditimbang: 'is-info',
     'Menunggu pembayaran': 'is-warning',
+    Lunas: 'is-success',
+    'Siap diproses': 'is-process',
     'Sedang dicuci': 'is-process',
+    'Selesai dicuci': 'is-process',
     'Siap diambil': 'is-success',
+    'Dalam pengantaran': 'is-process',
+    'Diterima pelanggan': 'is-done',
     Selesai: 'is-done',
     Dibatalkan: 'is-danger',
 };
@@ -260,11 +269,20 @@ export const paymentTone = {
 };
 
 export const orderStatuses = [
+    'Draft',
+    'Terkonfirmasi',
     'Menunggu penjemputan',
+    'Menunggu antaran pelanggan',
     'Perlu ditimbang',
+    'Ditimbang',
     'Menunggu pembayaran',
+    'Lunas',
+    'Siap diproses',
     'Sedang dicuci',
+    'Selesai dicuci',
     'Siap diambil',
+    'Dalam pengantaran',
+    'Diterima pelanggan',
     'Selesai',
     'Dibatalkan',
 ];

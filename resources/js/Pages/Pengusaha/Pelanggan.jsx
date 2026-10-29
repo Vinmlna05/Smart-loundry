@@ -2,7 +2,6 @@ import '../../../css/pengusaha-pelanggan.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminCustomers,
     customerSegmentOptions,
     customerSegments,
     formatTanggal,
@@ -50,13 +49,10 @@ const summaryItems = [
     },
 ];
 
-const serviceOptions = [
-    'Cuci dan Setrika',
-    'Cuci Kering',
-    'Setrika Saja',
-];
-
-export default function PengusahaPelanggan() {
+export default function PengusahaPelanggan({
+    customers = [],
+    serviceOptions = [],
+}) {
     const [selectedSegment, setSelectedSegment] = useState('all');
     const [search, setSearch] = useState('');
     const [serviceFilter, setServiceFilter] = useState('all');
@@ -67,24 +63,23 @@ export default function PengusahaPelanggan() {
 
     const summaryCounts = useMemo(
         () => ({
-            all: adminCustomers.length,
-            loyal: adminCustomers.filter(
+            all: customers.length,
+            loyal: customers.filter(
                 (customer) => customer.segment === 'loyal',
             ).length,
-            new: adminCustomers.filter(
-                (customer) => customer.segment === 'new',
-            ).length,
-            attention: adminCustomers.filter(
+            new: customers.filter((customer) => customer.segment === 'new')
+                .length,
+            attention: customers.filter(
                 (customer) => customer.segment === 'attention',
             ).length,
         }),
-        [],
+        [customers],
     );
 
     const filteredCustomers = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return adminCustomers
+        return customers
             .filter((customer) => {
                 if (
                     selectedSegment !== 'all' &&
@@ -134,7 +129,7 @@ export default function PengusahaPelanggan() {
                     new Date(first.lastOrderAt)
                 );
             });
-    }, [search, selectedSegment, serviceFilter, sortBy]);
+    }, [customers, search, selectedSegment, serviceFilter, sortBy]);
 
     const totalPages = Math.max(
         1,
@@ -284,7 +279,7 @@ export default function PengusahaPelanggan() {
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Data tersimpan
                     </span>
                     <button
                         type="button"
@@ -648,8 +643,8 @@ export default function PengusahaPelanggan() {
             </section>
 
             <p className="admin-dashboard-note">
-                Semua pelanggan pada halaman ini adalah data contoh untuk
-                pratinjau tampilan manajemen pelanggan.
+                Data pelanggan, riwayat pesanan, dan total belanja dihitung
+                langsung dari pesanan yang tersimpan.
             </p>
 
             {selectedCustomer && (
@@ -846,8 +841,8 @@ function CustomerDrawer({ customer, onClose }) {
 
                 <div className="admin-drawer-foot admin-customer-drawer-foot">
                     <p>
-                        Data contoh untuk pratinjau. Perubahan data pelanggan
-                        belum tersimpan ke backend.
+                        Data pelanggan dan riwayat pesanan tersimpan di
+                        database.
                     </p>
                     <div className="admin-customer-drawer-actions">
                         <a

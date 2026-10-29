@@ -6,15 +6,12 @@ import {
     chatbotDefaults,
     chatbotFallbackOptions,
     chatbotGuardrailOptions,
-    chatbotKnowledge,
-    chatbotPreviewStats,
     chatbotQuickPrompts,
     chatbotToneOptions,
 } from '@/Data/adminChatbot';
-import { adminServices } from '@/Data/adminServices';
 import { formatRupiah } from '@/Data/adminOrders';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
-import { Link } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const knowledgeToggles = [
@@ -44,7 +41,12 @@ const knowledgeToggles = [
 const nextPreviewId = () =>
     `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-const buildPreviewReply = (message, settings, sampleService) => {
+const getCsrfToken = () =>
+    document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content') ?? '';
+
+const buildPreviewReply = (message, settings, sampleService, knowledge) => {
     const value = message.toLowerCase();
 
     if (/harga|tarif|biaya|berapa/.test(value)) {
@@ -70,7 +72,7 @@ const buildPreviewReply = (message, settings, sampleService) => {
             return 'Info penjemputan sedang tidak disertakan. Kamu tetap bisa antar sendiri ke outlet atau gunakan Pesan Manual.';
         }
 
-        return `Bisa. Penjemputan tersedia di area ${chatbotKnowledge.area}. Kirim alamat lengkap dan jadwal jemput, nanti aku bantu catat.`;
+        return `Bisa. Penjemputan tersedia di area ${knowledge.area}. Kirim alamat lengkap dan jadwal jemput, nanti aku bantu catat.`;
     }
 
     if (/jam|buka|outlet|lokasi/.test(value)) {
@@ -78,7 +80,7 @@ const buildPreviewReply = (message, settings, sampleService) => {
             return 'Info outlet dan jam buka sedang tidak disertakan. Kamu bisa memeriksa halaman outlet atau hubungi petugas.';
         }
 
-        return `Outlet Pusat buka setiap hari ${chatbotKnowledge.hours}. Alamat dan pilihan antar sendiri bisa dilihat di halaman outlet.`;
+        return `Outlet Pusat buka setiap hari ${knowledge.hours}. Alamat dan pilihan antar sendiri bisa dilihat di halaman outlet.`;
     }
 
     if (/pesan|order|cuci/.test(value)) {
@@ -96,26 +98,29 @@ const buildPreviewReply = (message, settings, sampleService) => {
     return 'Aku belum yakin menjawab itu. Mau aku arahkan ke Pesan Manual supaya pesananmu bisa dicek petugas?';
 };
 
-export default function PengusahaChatbot() {
-    const [settings, setSettings] = useState(chatbotDefaults);
+export default function PengusahaChatbot({
+    settings: initialSettings = chatbotDefaults,
+    services = [],
+    stats: serverStats = {},
+    knowledge = {},
+}) {
+    const { flash } = usePage().props;
+    const [settings, setSettings] = useState(initialSettings);
     const [savedSettings, setSavedSettings] = useState(() =>
-        JSON.stringify(chatbotDefaults),
+        JSON.stringify(initialSettings),
     );
     const [previewInput, setPreviewInput] = useState('');
     const [previewMessages, setPreviewMessages] = useState(() => [
         {
             id: 'chat-greeting',
             role: 'bot',
-            text: chatbotDefaults.greeting,
+            text: initialSettings.greeting,
         },
     ]);
     const [toast, setToast] = useState('');
     const chatBodyRef = useRef(null);
 
-    const activeServices = useMemo(
-        () => adminServices.filter((service) => service.active),
-        [],
-    );
+    const activeServices = useMemo(() => services, [services]);
     const sampleService =
         activeServices.find(
             (service) => service.name === 'Cuci dan Setrika',
@@ -125,6 +130,18 @@ export default function PengusahaChatbot() {
             (tone) => tone.value === settings.tone,
         ) ?? chatbotToneOptions[0];
     const isDirty = JSON.stringify(settings) !== savedSettings;
+    const conversationsToday = Number(
+        serverStats.conversationsToday ?? 0,
+    );
+    const ordersFromChatbot = Number(
+        serverStats.ordersFromChatbot ?? 0,
+    );
+    const completionRate = Number(serverStats.completionRate ?? 0);
+    const outletKnowledge = {
+        outletCount: knowledge.outletCount ?? 1,
+        hours: knowledge.hours ?? '08.00-20.00',
+        area: knowledge.area ?? 'Bandung',
+    };
 
     const stats = useMemo(
         () => [
@@ -141,21 +158,20 @@ export default function PengusahaChatbot() {
             },
             {
                 label: 'Percakapan hari ini',
-                value: String(chatbotPreviewStats.conversationsToday),
+                value: String(conversationsToday),
                 note: 'Dari halaman Chatbot AI pelanggan',
-                trend: chatbotPreviewStats.conversationGrowth,
+                trend: 'Hari ini',
                 trendTone: 'is-up',
                 tone: 'is-blue',
                 icon: 'message',
             },
             {
                 label: 'Pesanan dari chatbot',
-                value: String(chatbotPreviewStats.ordersFromChatbot),
-                note: `${Math.round(
-                    (chatbotPreviewStats.ordersFromChatbot /
-                        chatbotPreviewStats.conversationsToday) *
-                        100,
-                )}% dari percakapan berujung pesanan`,
+                value: String(ordersFromChatbot),
+                note:
+                    conversationsToday > 0
+                        ? `${completionRate}% percakapan berujung pesanan`
+                        : 'Belum ada percakapan hari ini',
                 trend: 'Manual + AI',
                 trendTone: 'is-up',
                 tone: 'is-teal',
@@ -163,16 +179,27 @@ export default function PengusahaChatbot() {
             },
             {
                 label: 'Penyelesaian',
-                value: `${chatbotPreviewStats.completionRate}%`,
+                value: `${completionRate}%`,
                 note: 'Percakapan yang berhasil diarahkan',
-                trend: '+6% minggu ini',
+                trend: 'Hari ini',
                 trendTone: 'is-up',
                 tone: 'is-green',
                 icon: 'trend',
             },
         ],
-        [settings.enabled],
+        [
+            completionRate,
+            conversationsToday,
+            ordersFromChatbot,
+            settings.enabled,
+        ],
     );
+
+    useEffect(() => {
+        if (flash?.status) {
+            setToast(flash.status);
+        }
+    }, [flash?.status]);
 
     useEffect(() => {
         setPreviewMessages((previous) => {
@@ -222,9 +249,26 @@ export default function PengusahaChatbot() {
 
     const saveSettings = (event) => {
         event.preventDefault();
-        setSavedSettings(JSON.stringify(settings));
-        setToast(
-            'Pengaturan chatbot disimpan pada pratinjau lokal.',
+
+        const csrfToken = getCsrfToken();
+
+        router.post(
+            route('pengusaha.chatbot.update'),
+            { ...settings, _token: csrfToken },
+            {
+                preserveScroll: true,
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,
+                },
+                onSuccess: () => {
+                    setSavedSettings(JSON.stringify(settings));
+                    setToast('Pengaturan chatbot disimpan.');
+                },
+                onError: () => {
+                    setToast('Periksa kembali isian pengaturan chatbot.');
+                },
+            },
         );
     };
 
@@ -255,6 +299,7 @@ export default function PengusahaChatbot() {
             message,
             settings,
             sampleService,
+            outletKnowledge,
         );
 
         setPreviewMessages((previous) => [
@@ -287,15 +332,15 @@ export default function PengusahaChatbot() {
                     </h1>
                     <p>
                         Atur sapaan, pengetahuan layanan, dan batasan jawaban
-                        chatbot. Pratinjau di samping memakai balasan contoh,
-                        bukan panggilan Gemini langsung.
+                        chatbot. Aturan yang disimpan langsung dipakai chatbot
+                        pelanggan melalui backend.
                     </p>
                 </div>
 
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Tersimpan di database
                     </span>
                     <button
                         type="submit"
@@ -535,10 +580,10 @@ export default function PengusahaChatbot() {
                                         </span>
                                         <span>Outlet</span>
                                         <strong>
-                                            {chatbotKnowledge.outletCount}
+                                            {outletKnowledge.outletCount}
                                         </strong>
                                         <small>
-                                            Buka {chatbotKnowledge.hours}
+                                            Buka {outletKnowledge.hours}
                                         </small>
                                     </div>
                                     <div>
@@ -914,8 +959,8 @@ export default function PengusahaChatbot() {
                                 </strong>
                                 <span>
                                     {isDirty
-                                        ? 'Simpan untuk memperbarui pratinjau lokal.'
-                                        : 'Pengaturan masih berupa data contoh dan belum masuk backend.'}
+                                        ? 'Simpan agar chatbot pelanggan memakai aturan terbaru.'
+                                        : 'Aturan tersimpan dan dipakai chatbot pelanggan.'}
                                 </span>
                             </div>
                             <div className="admin-chatbot-savebar-actions">
@@ -1059,8 +1104,8 @@ export default function PengusahaChatbot() {
                             </form>
 
                             <p className="admin-chat-sample-note">
-                                Balasan contoh untuk pratinjau tampilan.
-                                Gemini tidak dipanggil dari halaman ini.
+                                Pratinjau lokal memakai balasan contoh. Chatbot
+                                pelanggan memakai Gemini dan aturan tersimpan.
                             </p>
                         </div>
                     </section>
@@ -1099,9 +1144,8 @@ export default function PengusahaChatbot() {
                         </ul>
 
                         <p className="admin-chatbot-server-note">
-                            Pengaturan pada halaman ini adalah pratinjau
-                            frontend. Penyimpanan dan panggilan Gemini belum
-                            terhubung.
+                            Pengaturan disimpan di database dan dipakai backend
+                            saat pelanggan mengirim teks atau voice note.
                         </p>
                     </section>
                 </aside>

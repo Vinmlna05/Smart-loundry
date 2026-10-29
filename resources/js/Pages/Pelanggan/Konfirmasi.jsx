@@ -1,10 +1,9 @@
 import '../../../css/konfirmasi.css';
 
 import { clearOrderDraft, readOrderDraft } from '@/Data/orderDraft';
-import { orderServices } from '@/Data/services';
 import CleanoraLayout from '@/Layouts/CleanoraLayout';
-import { Link } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Link, useForm } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 
 const rupiah = (value) => `Rp${new Intl.NumberFormat('id-ID').format(value)}`;
 
@@ -35,16 +34,18 @@ const formatDate = (value) => {
     }).format(date);
 };
 
-export default function PelangganKonfirmasi() {
+export default function PelangganKonfirmasi({ services = [] }) {
     const [draft] = useState(readOrderDraft);
     const [agreement, setAgreement] = useState(false);
-    const [isConfirmed, setIsConfirmed] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const service = useMemo(
         () =>
-            orderServices.find((item) => item.id === draft?.serviceId) ?? null,
-        [draft],
+            services.find(
+                (item) =>
+                    String(item.slug) === String(draft?.serviceId) ||
+                    String(item.id) === String(draft?.serviceId),
+            ) ?? null,
+        [draft, services],
     );
 
     const quantity = Number(draft?.quantity) || 0;
@@ -61,35 +62,29 @@ export default function PelangganKonfirmasi() {
             (method !== 'jemput' || draft?.address?.trim()),
     );
 
-    useEffect(() => {
-        if (!isModalOpen) {
-            return undefined;
-        }
+    const { post, processing, errors } = useForm({
+        name: draft?.customerName ?? '',
+        whatsapp: draft?.phone ?? '',
+        service_id: service?.id ?? '',
+        estimated_quantity: draft?.quantity ?? '',
+        notes: draft?.notes ?? '',
+        intake_method: method === 'jemput' ? 'jemput' : 'antar',
+        address: draft?.address ?? '',
+        schedule_date: draft?.pickupDate ?? '',
+        schedule_time: draft?.pickupTime ?? '',
+    });
 
-        const handleKeyDown = (event) => {
-            if (event.key === 'Escape') {
-                setIsModalOpen(false);
-            }
-        };
-
-        const previousOverflow = document.body.style.overflow;
-
-        document.body.style.overflow = 'hidden';
-        window.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-            document.body.style.overflow = previousOverflow;
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isModalOpen]);
+    const validationMessages = Object.values(errors);
 
     const handleConfirm = () => {
-        if (!agreement || isConfirmed) {
+        if (!agreement || processing) {
             return;
         }
 
-        setIsConfirmed(true);
-        setIsModalOpen(true);
+        post(route('pelanggan.pesan.store'), {
+            preserveScroll: true,
+            onSuccess: () => clearOrderDraft(),
+        });
     };
 
     const scheduleLabel = draft
@@ -441,82 +436,68 @@ export default function PelangganKonfirmasi() {
                                         </p>
                                     </div>
 
-                                    {isConfirmed ? (
-                                        <>
-                                            <div className="confirm-status">
-                                                <span className="confirm-status-icon">
-                                                    ✓
-                                                </span>
-                                                <div>
-                                                    <strong>
-                                                        Pesanan dikonfirmasi
-                                                    </strong>
-                                                    <small>
-                                                        Simulasi tampilan.
-                                                        Pesanan belum
-                                                        tersimpan ke database.
-                                                    </small>
-                                                </div>
-                                            </div>
-
-                                            <Link
-                                                href={route(
-                                                    'pelanggan.pesan',
+                                    {validationMessages.length > 0 && (
+                                        <div
+                                            className="confirm-error"
+                                            role="alert"
+                                        >
+                                            <strong>
+                                                Pesanan belum bisa
+                                                dikonfirmasi.
+                                            </strong>
+                                            <ul>
+                                                {validationMessages.map(
+                                                    (message) => (
+                                                        <li key={message}>
+                                                            {message}
+                                                        </li>
+                                                    ),
                                                 )}
-                                                className="btn btn-outline confirm-new"
-                                                onClick={clearOrderDraft}
-                                            >
-                                                Buat pesanan baru
-                                            </Link>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="confirm-agreement">
-                                                <label
-                                                    className="confirm-checkbox"
-                                                    htmlFor="confirm-agreement"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        id="confirm-agreement"
-                                                        checked={agreement}
-                                                        onChange={(event) =>
-                                                            setAgreement(
-                                                                event.target
-                                                                    .checked,
-                                                            )
-                                                        }
-                                                    />
-                                                    <span>
-                                                        Saya sudah memeriksa
-                                                        seluruh detail dan
-                                                        memahami bahwa harga
-                                                        final mengikuti berat
-                                                        aktual.
-                                                    </span>
-                                                </label>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary confirm-submit"
-                                                disabled={!agreement}
-                                                onClick={handleConfirm}
-                                            >
-                                                Konfirmasi pesanan{' '}
-                                                <span>→</span>
-                                            </button>
-
-                                            <Link
-                                                href={route(
-                                                    'pelanggan.pesan',
-                                                )}
-                                                className="confirm-back"
-                                            >
-                                                ← Kembali ubah data
-                                            </Link>
-                                        </>
+                                            </ul>
+                                        </div>
                                     )}
+
+                                    <div className="confirm-agreement">
+                                        <label
+                                            className="confirm-checkbox"
+                                            htmlFor="confirm-agreement"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                id="confirm-agreement"
+                                                checked={agreement}
+                                                onChange={(event) =>
+                                                    setAgreement(
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            <span>
+                                                Saya sudah memeriksa seluruh
+                                                detail dan memahami bahwa harga
+                                                final mengikuti berat aktual.
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary confirm-submit"
+                                        disabled={!agreement || processing}
+                                        onClick={handleConfirm}
+                                    >
+                                        {processing
+                                            ? 'Menyimpan pesanan…'
+                                            : 'Konfirmasi pesanan'}{' '}
+                                        {!processing && <span>→</span>}
+                                    </button>
+
+                                    <Link
+                                        href={route('pelanggan.pesan')}
+                                        className="confirm-back"
+                                    >
+                                        ← Kembali ubah data
+                                    </Link>
 
                                     <p className="confirm-secure">
                                         <span>✓</span>
@@ -543,61 +524,6 @@ export default function PelangganKonfirmasi() {
                     )}
                 </div>
             </section>
-
-            {isModalOpen && isComplete && (
-                <div
-                    className="confirm-modal-backdrop"
-                    onClick={(event) => {
-                        if (event.target === event.currentTarget) {
-                            setIsModalOpen(false);
-                        }
-                    }}
-                >
-                    <div
-                        className="confirm-modal"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="confirm-modal-title"
-                    >
-                        <div className="confirm-modal-icon">✓</div>
-                        <span className="section-label">
-                            PESANAN DIKONFIRMASI
-                        </span>
-                        <h2 id="confirm-modal-title">
-                            Terima kasih, {draft.customerName}.
-                        </h2>
-                        <p>
-                            Detail pesananmu sudah diperiksa dan siap
-                            diteruskan ke alur pemrosesan laundry.
-                        </p>
-
-                        <div className="confirm-modal-note">
-                            <strong>Catatan tahap pengembangan</strong>
-                            <p>
-                                Pesanan belum tersimpan ke database. Setelah
-                                backend terhubung, nomor pesanan, nota, dan
-                                konfirmasi WhatsApp akan dibuat otomatis.
-                            </p>
-                        </div>
-
-                        <div className="confirm-modal-actions">
-                            <Link
-                                href={route('pelanggan.dashboard')}
-                                className="btn btn-primary"
-                            >
-                                Kembali ke beranda
-                            </Link>
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={() => setIsModalOpen(false)}
-                            >
-                                Periksa lagi
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </CleanoraLayout>
     );
 }

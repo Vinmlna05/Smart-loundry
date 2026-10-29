@@ -688,6 +688,14 @@
     gap: 6px;
 }
 
+.admin-payment-method-select {
+    height: 38px;
+}
+
+.admin-payment-method-select select {
+    font-size: 12px;
+}
+
 .admin-payment-drawer-actions .admin-button {
     white-space: nowrap;
 }
@@ -720,6 +728,7 @@
         align-items: stretch;
     }
 
+    .admin-payment-method-select,
     .admin-payment-drawer-actions .admin-button {
         width: 100%;
     }

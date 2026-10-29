@@ -1,7 +1,5 @@
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminOrders,
-    dashboardOrders as orders,
     formatCompactRupiah,
     formatRupiah,
     initialsOf,
@@ -19,208 +17,24 @@ const filters = [
     { key: 'done', label: 'Selesai' },
 ];
 
-const latestDateKey = adminOrders[0]?.id.split('-')[1] ?? '20261024';
-const latestDate = new Date(
-    `${latestDateKey.slice(0, 4)}-${latestDateKey.slice(
-        4,
-        6,
-    )}-${latestDateKey.slice(6, 8)}T00:00:00`,
-);
-const dateKey = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
 
-    return `${year}${month}${day}`;
-};
-const todayOrders = adminOrders.filter((order) =>
-    order.id.includes(latestDateKey),
-);
-const paidOrders = adminOrders.filter(
-    (order) => order.payment === 'Lunas',
-);
-const todayPaidOrders = todayOrders.filter(
-    (order) => order.payment === 'Lunas',
-);
-const waitingPaymentOrders = adminOrders.filter(
-    (order) => order.status === 'Menunggu pembayaran',
-);
-const pendingWeighOrders = adminOrders.filter(
-    (order) => order.status === 'Perlu ditimbang',
-);
-const readyOrders = adminOrders.filter(
-    (order) => order.status === 'Siap diambil',
-);
-const attentionOrders = adminOrders.filter(
-    (order) => order.group === 'attention',
-);
-const activeOrders = adminOrders.filter((order) =>
-    ['attention', 'process'].includes(order.group),
-);
-const paidRevenue = paidOrders.reduce(
-    (total, order) => total + order.total,
-    0,
-);
-const todayPaidRevenue = todayPaidOrders.reduce(
-    (total, order) => total + order.total,
-    0,
-);
-const waitingPaymentTotal = waitingPaymentOrders.reduce(
-    (total, order) => total + order.total,
-    0,
-);
-const sampleDateLabel = new Intl.DateTimeFormat('id-ID', {
-    day: 'numeric',
-    month: 'short',
-}).format(latestDate);
-
-const stats = [
-    {
-        label: 'Pesanan hari ini',
-        value: String(todayOrders.length),
-        note: `Pesanan masuk pada ${sampleDateLabel}`,
-        trend: 'Hari ini',
-        trendTone: 'is-up',
-        tone: 'is-teal',
-        icon: 'orders',
-    },
-    {
-        label: 'Perlu tindakan',
-        value: String(attentionOrders.length),
-        note: 'Jemput, timbang, atau konfirmasi bayar',
-        trend: 'Perlu tindakan',
-        trendTone: 'is-warning',
-        tone: 'is-blue',
-        icon: 'queue',
-    },
-    {
-        label: 'Menunggu pembayaran',
-        value: String(waitingPaymentOrders.length),
-        note: `${formatRupiah(waitingPaymentTotal)} belum masuk`,
-        trend: 'Kirim pengingat',
-        trendTone: 'is-warning',
-        tone: 'is-gold',
-        icon: 'payments',
-    },
-    {
-        label: 'Pendapatan hari ini',
-        value: formatRupiah(todayPaidRevenue),
-        note: `Dari ${todayPaidOrders.length} transaksi lunas`,
-        trend: `Total ${formatCompactRupiah(paidRevenue)}`,
-        trendTone: 'is-up',
-        tone: 'is-green',
-        icon: 'trend',
-    },
-];
-
-const tasks = [
-    {
-        id: 'timbang',
-        title: `Timbang ${pendingWeighOrders.length} pesanan masuk`,
-        meta: 'Penimbangan • sebelum 10.30',
-        priority: 'Tinggi',
-        priorityTone: 'is-high',
-    },
-    {
-        id: 'pembayaran',
-        title: `Konfirmasi ${waitingPaymentOrders.length} pembayaran`,
-        meta: 'Pembayaran • sebelum 11.00',
-        priority: 'Tinggi',
-        priorityTone: 'is-high',
-    },
-    {
-        id: 'pengantaran',
-        title: `Hubungi ${readyOrders.length} pelanggan siap diambil`,
-        meta: 'Penyerahan • sekitar 13.00',
-        priority: 'Normal',
-        priorityTone: 'is-normal',
-    },
-    {
-        id: 'chat',
-        title: 'Balas 3 chat pelanggan',
-        meta: 'Chatbot • tanpa tenggat',
-        priority: 'Normal',
-        priorityTone: 'is-normal',
-    },
-];
-
-const revenueByDate = paidOrders.reduce((totals, order) => {
-    const orderDate = order.id.split('-')[1];
-
-    totals[orderDate] = (totals[orderDate] ?? 0) + order.total;
-
-    return totals;
-}, {});
-
-const revenueData = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(latestDate);
-
-    date.setDate(latestDate.getDate() - 6 + index);
-
-    return {
-        day: new Intl.DateTimeFormat('id-ID', {
-            weekday: 'short',
-        }).format(date),
-        value: revenueByDate[dateKey(date)] ?? 0,
-    };
-});
-
-const ordersWithStatus = (status) =>
-    adminOrders.filter((order) => order.status === status).length;
-
-const stages = [
-    {
-        label: 'Menunggu jemput',
-        count: ordersWithStatus('Menunggu penjemputan'),
-        note: 'Petugas belum menjemput',
-        icon: 'truck',
-        tone: 'is-blue',
-    },
-    {
-        label: 'Diterima',
-        count: ordersWithStatus('Perlu ditimbang'),
-        note: 'Belum ditimbang',
-        icon: 'package',
-        tone: 'is-teal',
-    },
-    {
-        label: 'Menunggu bayar',
-        count: ordersWithStatus('Menunggu pembayaran'),
-        note: 'Nota sudah diterbitkan',
-        icon: 'queue',
-        tone: 'is-gold',
-    },
-    {
-        label: 'Sedang dicuci',
-        count: ordersWithStatus('Sedang dicuci'),
-        note: 'Sedang dikerjakan',
-        icon: 'spark',
-        tone: 'is-teal',
-    },
-    {
-        label: 'Siap diambil',
-        count: ordersWithStatus('Siap diambil'),
-        note: 'Belum dihubungi',
-        icon: 'check',
-        tone: 'is-green',
-    },
-];
-
-const serviceMix = Object.entries(
-    adminOrders.reduce((services, order) => {
-        services[order.service] = (services[order.service] ?? 0) + 1;
-
-        return services;
-    }, {}),
-)
-    .map(([name, count]) => ({
-        name,
-        orders: count,
-        percent: Math.round((count / adminOrders.length) * 100),
-    }))
-    .sort((first, second) => second.orders - first.orders);
-
-export default function PengusahaDashboard() {
+export default function PengusahaDashboard({ dashboard }) {
+    const {
+        stats,
+        tasks,
+        orders,
+        filterCounts,
+        revenue,
+        stages,
+        services,
+        activeCount,
+        waitingPaymentCount,
+    } = dashboard;
+    const revenueData = revenue.daily;
+    const weeklyRevenue = revenue.weeklyTotal;
+    const todayPaidRevenue = revenue.todayTotal;
+    const serviceMix = services.items;
+    const serviceTotal = services.total;
     const user = usePage().props.auth.user;
     const [activeFilter, setActiveFilter] = useState('all');
     const [search, setSearch] = useState('');
@@ -259,31 +73,21 @@ export default function PengusahaDashboard() {
                 order.status,
             ].some((value) => value.toLowerCase().includes(keyword));
         });
-    }, [activeFilter, search]);
-
-    const filterCounts = useMemo(
-        () =>
-            filters.reduce((counts, filter) => {
-                counts[filter.key] =
-                    filter.key === 'all'
-                        ? orders.length
-                        : orders.filter(
-                              (order) => order.group === filter.key,
-                          ).length;
-
-                return counts;
-            }, {}),
-        [],
-    );
+    }, [activeFilter, orders, search]);
 
     const completedCount = completedTasks.length;
-    const taskProgress = Math.round((completedCount / tasks.length) * 100);
-    const maxRevenue = Math.max(...revenueData.map((item) => item.value));
-    const weeklyRevenue = revenueData.reduce(
-        (total, item) => total + item.value,
-        0,
+    const taskProgress =
+        tasks.length > 0
+            ? Math.round((completedCount / tasks.length) * 100)
+            : 0;
+    const maxRevenue = Math.max(
+        1,
+        ...revenueData.map((item) => item.value),
     );
     const todayIndex = revenueData.length - 1;
+    const highPriorityCount = tasks.filter(
+        (task) => task.priority === 'Tinggi',
+    ).length;
 
     useEffect(() => {
         if (!selectedOrder) {
@@ -380,14 +184,14 @@ export default function PengusahaDashboard() {
 
     return (
         <PengusahaLayout
-            title="Dashboard Pengusaha — Cleanora"
+            title="Dashboard Pengusaha â€” Cleanora"
             active="dashboard"
             breadcrumb="Ringkasan"
         >
             <div className="admin-page-head">
                 <div className="admin-page-heading">
                     <span className="admin-eyebrow">
-                        <span aria-hidden="true">✦</span>
+                        <span aria-hidden="true">âœ¦</span>
                         Ringkasan operasional
                     </span>
                     <h1>
@@ -402,7 +206,7 @@ export default function PengusahaDashboard() {
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Data langsung
                     </span>
                     <button
                         type="button"
@@ -439,7 +243,11 @@ export default function PengusahaDashboard() {
                             </span>
                         </div>
                         <p>{stat.label}</p>
-                        <strong>{stat.value}</strong>
+                        <strong>
+                            {stat.format === 'currency'
+                                ? formatRupiah(stat.value)
+                                : stat.value}
+                        </strong>
                         <span className="admin-stat-note">{stat.note}</span>
                     </article>
                 ))}
@@ -458,7 +266,7 @@ export default function PengusahaDashboard() {
                         </div>
                         <span className="admin-live">
                             <span aria-hidden="true" />
-                            Diperbarui 2 menit lalu
+                            Data terkini
                         </span>
                     </div>
 
@@ -526,7 +334,7 @@ export default function PengusahaDashboard() {
                                             <div className="admin-cell-main">
                                                 <strong>{order.id}</strong>
                                                 <span>
-                                                    {order.time} •{' '}
+                                                    {order.time} â€¢{' '}
                                                     {order.intake}
                                                 </span>
                                             </div>
@@ -552,7 +360,7 @@ export default function PengusahaDashboard() {
                                                     >
                                                         {order.source ===
                                                         'Chatbot AI'
-                                                            ? '✧ AI'
+                                                            ? 'âœ§ AI'
                                                             : 'Manual'}
                                                     </span>
                                                 </span>
@@ -716,8 +524,9 @@ export default function PengusahaDashboard() {
 
                         <p className="admin-task-note">
                             <AdminIcon name="alert" size={14} />
-                            Dua tugas prioritas tinggi perlu selesai sebelum
-                            pukul 11.00.
+                            {highPriorityCount > 0
+                                ? `${highPriorityCount} tugas prioritas tinggi menunggu tindak lanjut.`
+                                : 'Semua tugas prioritas tinggi sudah ditangani.'}
                         </p>
                     </section>
 
@@ -815,7 +624,7 @@ export default function PengusahaDashboard() {
                             </p>
                         </div>
                         <span className="admin-pipeline-total">
-                            {activeOrders.length} aktif
+                            {activeCount} aktif
                         </span>
                     </div>
 
@@ -843,7 +652,7 @@ export default function PengusahaDashboard() {
                     <div className="admin-pipeline-foot">
                         <span>
                             <span className="admin-pipeline-dot" />
-                            {waitingPaymentOrders.length} pesanan menunggu
+                            {waitingPaymentCount} pesanan menunggu
                             pembayaran
                         </span>
                         <Link
@@ -867,10 +676,10 @@ export default function PengusahaDashboard() {
                                 LAYANAN
                             </span>
                             <h2>Layanan terlaris</h2>
-                            <p>Berdasarkan jumlah pesanan contoh.</p>
+                            <p>Berdasarkan seluruh pesanan.</p>
                         </div>
                         <span className="admin-services-total">
-                            {adminOrders.length}
+                            {serviceTotal}
                         </span>
                     </div>
 
@@ -905,15 +714,16 @@ export default function PengusahaDashboard() {
 
                     <div className="admin-services-foot">
                         <AdminIcon name="spark" size={14} />
-                        Cuci dan Setrika tetap menjadi layanan favorit
-                        pelanggan.
+                        {serviceMix[0]
+                            ? `${serviceMix[0].name} menjadi layanan favorit pelanggan.`
+                            : 'Belum ada data layanan.'}
                     </div>
                 </section>
             </div>
 
             <p className="admin-dashboard-note">
-                Semua angka dan pesanan pada halaman ini adalah data contoh
-                untuk pratinjau tampilan dashboard.
+                Ringkasan ini dihitung langsung dari pesanan yang tersimpan
+                di database.
             </p>
 
             {selectedOrder && (
@@ -1054,8 +864,8 @@ export default function PengusahaDashboard() {
 
                         <div className="admin-drawer-foot">
                             <p>
-                                Data contoh untuk pratinjau dashboard. Detail
-                                pesanan akan terhubung ke data sebenarnya.
+                                Data pesanan tersimpan di database. Buka detail
+                                untuk memproses perubahan status.
                             </p>
                             <button
                                 type="button"

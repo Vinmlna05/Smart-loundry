@@ -2,7 +2,6 @@ import '../../../css/pengusaha-pembayaran.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
 import {
-    adminPayments,
     formatTanggalWaktu,
     paymentStatusConfig,
 } from '@/Data/adminPayments';
@@ -12,15 +11,16 @@ import {
     whatsappLink,
 } from '@/Data/adminOrders';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
 const PAGE_SIZE = 7;
 
+const paymentMethods = ['Transfer bank', 'QRIS', 'Tunai'];
+
 const methodOptions = [
-    'Transfer bank',
-    'QRIS',
-    'Tunai',
+    ...paymentMethods,
+    'Belum dipilih',
     'Belum ditagih',
 ];
 
@@ -33,12 +33,14 @@ const shortDate = (value) =>
         : '-';
 
 const methodLabel = (payment) =>
-    payment.method === 'Belum ditagih'
-        ? 'Belum ditagih'
+    ['Belum ditagih', 'Belum dipilih', 'Tidak tercatat'].includes(
+        payment.method,
+    )
+        ? payment.method
         : `${payment.method} · ${payment.channel}`;
 
-export default function PengusahaPembayaran() {
-    const [paymentList, setPaymentList] = useState(adminPayments);
+export default function PengusahaPembayaran({ payments }) {
+    const [paymentList, setPaymentList] = useState(payments);
     const [statusFilter, setStatusFilter] = useState('all');
     const [methodFilter, setMethodFilter] = useState('all');
     const [search, setSearch] = useState('');
@@ -46,6 +48,10 @@ export default function PengusahaPembayaran() {
     const [page, setPage] = useState(1);
     const [selectedPaymentId, setSelectedPaymentId] = useState(null);
     const [toast, setToast] = useState('');
+
+    useEffect(() => {
+        setPaymentList(payments);
+    }, [payments]);
 
     const statusCounts = useMemo(
         () =>
@@ -230,23 +236,26 @@ export default function PengusahaPembayaran() {
         setPage(1);
     };
 
-    const confirmPayment = (payment) => {
-        const paidAt = new Date().toISOString();
-
-        setPaymentList((previous) =>
-            previous.map((item) =>
-                item.id === payment.id
-                    ? {
-                          ...item,
-                          status: 'Lunas',
-                          paidAt,
-                          confirmedBy: 'Pengusaha',
-                      }
-                    : item,
-            ),
-        );
-        setToast(
-            `Pembayaran ${payment.invoiceNumber} ditandai lunas pada pratinjau lokal.`,
+    const confirmPayment = (payment, paymentMethod) => {
+        router.patch(
+            route('pengusaha.pesanan.bayar', payment.orderId),
+            { payment_method: paymentMethod },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSelectedPaymentId(null);
+                    setToast(
+                        `Pembayaran ${payment.invoiceNumber} dikonfirmasi.`,
+                    );
+                },
+                onError: (errors) => {
+                    setToast(
+                        errors.payment_method ??
+                            errors.payment ??
+                            'Pembayaran gagal dikonfirmasi. Coba lagi.',
+                    );
+                },
+            },
         );
     };
 
@@ -337,7 +346,7 @@ export default function PengusahaPembayaran() {
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Data contoh
+                        Data langsung
                     </span>
                     <button
                         type="button"
@@ -706,16 +715,18 @@ export default function PengusahaPembayaran() {
             </section>
 
             <p className="admin-dashboard-note">
-                Semua pembayaran dan nota pada halaman ini adalah data
-                contoh. Konfirmasi hanya berlaku pada pratinjau lokal dan
-                belum tersimpan ke backend.
+                Status pembayaran dihitung dari pesanan yang tersimpan di
+                database. Konfirmasi pembayaran langsung memperbarui status
+                pesanan.
             </p>
 
             {selectedPayment && (
                 <PaymentDrawer
                     payment={selectedPayment}
                     onClose={() => setSelectedPaymentId(null)}
-                    onConfirm={() => confirmPayment(selectedPayment)}
+                    onConfirm={(paymentMethod) =>
+                        confirmPayment(selectedPayment, paymentMethod)
+                    }
                 />
             )}
 
@@ -857,6 +868,11 @@ function PaymentDrawer({ payment, onClose, onConfirm }) {
         payment.status === 'Belum dibayar';
     const isBilled = payment.status !== 'Belum ditagih';
     const proof = payment.proof;
+    const [paymentMethod, setPaymentMethod] = useState(
+        paymentMethods.includes(payment.method)
+            ? payment.method
+            : 'Transfer bank',
+    );
 
     return (
         <div
@@ -1092,15 +1108,36 @@ function PaymentDrawer({ payment, onClose, onConfirm }) {
 
                 <div className="admin-drawer-foot admin-payment-drawer-foot">
                     <p>
-                        Data contoh untuk pratinjau. Pembayaran belum
-                        tersimpan ke backend.
+                        Konfirmasi pembayaran menyimpan metode dan menandai
+                        pesanan lunas.
                     </p>
                     <div className="admin-payment-drawer-actions">
+                        {canConfirm && (
+                            <label className="admin-select admin-payment-method-select">
+                                <span className="sr-only">
+                                    Metode pembayaran
+                                </span>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(event) =>
+                                        setPaymentMethod(event.target.value)
+                                    }
+                                >
+                                    {paymentMethods.map((method) => (
+                                        <option key={method} value={method}>
+                                            {method}
+                                        </option>
+                                    ))}
+                                </select>
+                                <AdminIcon name="chevron" size={13} />
+                            </label>
+                        )}
+
                         {canConfirm && (
                             <button
                                 type="button"
                                 className="admin-button admin-button-primary"
-                                onClick={onConfirm}
+                                onClick={() => onConfirm(paymentMethod)}
                             >
                                 {payment.status === 'Perlu konfirmasi'
                                     ? 'Konfirmasi pembayaran'

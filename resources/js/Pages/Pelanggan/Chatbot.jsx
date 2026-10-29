@@ -1,8 +1,7 @@
 import '../../../css/chatbot.css';
 
-import { orderServices } from '@/Data/services';
 import CleanoraLayout from '@/Layouts/CleanoraLayout';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const rupiah = (value) => `Rp${new Intl.NumberFormat('id-ID').format(value)}`;
@@ -20,129 +19,171 @@ const formatDuration = (totalSeconds) => {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
-const serviceKeywords = [
-    { id: 'cuci-setrika', keywords: ['cuci setrika', 'cuci dan setrika'] },
-    { id: 'cuci-kering', keywords: ['cuci kering'] },
-    { id: 'express', keywords: ['express', 'kilat'] },
-    { id: 'bed-cover', keywords: ['bed cover', 'bedcover', 'selimut'] },
-    { id: 'sepatu', keywords: ['sepatu'] },
-    { id: 'setrika', keywords: ['setrika'] },
-    { id: 'kemeja', keywords: ['kemeja'] },
-    { id: 'celana', keywords: ['celana'] },
-    { id: 'jaket', keywords: ['jaket'] },
-    { id: 'boneka', keywords: ['boneka'] },
-];
-
-function findService(text) {
-    const lower = text.toLowerCase();
-    const byName = orderServices.find((service) =>
-        lower.includes(service.name.toLowerCase()),
-    );
-
-    if (byName) {
-        return byName;
-    }
-
-    const byKeyword = serviceKeywords.find((item) =>
-        item.keywords.some((keyword) => lower.includes(keyword)),
-    );
-
-    return byKeyword
-        ? orderServices.find((service) => service.id === byKeyword.id)
-        : null;
-}
-
-function parseQuantity(text) {
-    const match = text.replace(',', '.').match(/(\d+(?:\.\d+)?)/);
-
-    return match ? Number(match[1]) : null;
-}
-
-const initialMessages = () => [
-    {
-        id: 'greeting',
-        role: 'bot',
-        time: timeLabel(),
-        text: 'Halo! Aku Cleanora Assistant, asisten laundry dari Cleanora. Aku bisa membantu menyusun pesanan lewat obrolan santai.',
-    },
-    {
-        id: 'ask-name',
-        role: 'bot',
-        time: timeLabel(),
-        text: 'Sebelum mulai, siapa nama kamu?',
-    },
-];
-
-const emptyDraft = {
-    name: '',
-    serviceId: '',
-    quantity: null,
-    method: '',
-    address: '',
-    confirmed: false,
-};
-
 const methodLabel = (method) =>
     method === 'jemput' ? 'Dijemput' : 'Antar sendiri';
 
-export default function PelangganChatbot() {
-    const [messages, setMessages] = useState(initialMessages);
-    const [stage, setStage] = useState('name');
-    const [draft, setDraft] = useState(emptyDraft);
+const createSessionToken = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+
+    return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
+const csrfToken = () => {
+    const metaToken = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content');
+
+    if (metaToken) {
+        return metaToken;
+    }
+
+    const cookie = document.cookie
+        .split('; ')
+        .find((item) => item.startsWith('XSRF-TOKEN='));
+
+    if (!cookie) {
+        return '';
+    }
+
+    return decodeURIComponent(cookie.split('=').slice(1).join('='));
+};
+
+const firstError = (error) => {
+    const errors = error?.response?.data?.errors;
+
+    if (errors && typeof errors === 'object') {
+        const first = Object.values(errors).flat()[0];
+
+        if (first) {
+            return first;
+        }
+    }
+
+    return (
+        error?.response?.data?.message ||
+        error?.message ||
+        'Terjadi kesalahan. Coba lagi, ya.'
+    );
+};
+
+const writeString = (view, offset, value) => {
+    for (let index = 0; index < value.length; index += 1) {
+        view.setUint8(offset + index, value.charCodeAt(index));
+    }
+};
+
+const convertToWav = async (blob) => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+        if (!AudioContext) {
+            return blob;
+        }
+
+        const context = new AudioContext();
+        const buffer = await context.decodeAudioData(
+            await blob.arrayBuffer(),
+        );
+        const sampleRate = buffer.sampleRate;
+        const length = buffer.length;
+        const channels = buffer.numberOfChannels;
+        const mono = new Float32Array(length);
+
+        for (let channel = 0; channel < channels; channel += 1) {
+            const data = buffer.getChannelData(channel);
+
+            for (let index = 0; index < length; index += 1) {
+                mono[index] += data[index] / channels;
+            }
+        }
+
+        const wav = new ArrayBuffer(44 + length * 2);
+        const view = new DataView(wav);
+
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + length * 2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, length * 2, true);
+
+        let offset = 44;
+
+        for (let index = 0; index < length; index += 1) {
+            const sample = Math.max(-1, Math.min(1, mono[index]));
+            view.setInt16(
+                offset,
+                sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+                true,
+            );
+            offset += 2;
+        }
+
+        await context.close();
+
+        return new Blob([wav], { type: 'audio/wav' });
+    } catch {
+        return blob;
+    }
+};
+
+export default function PelangganChatbot({
+    settings = {
+        enabled: true,
+        botName: 'Nova',
+        greeting:
+            'Halo! Aku Nova, asisten Cleanora. Mau pesan laundry, cek tarif, atau tanya jadwal penjemputan?',
+        maxAudioSeconds: 60,
+    },
+    services = [],
+}) {
+    const greet = useCallback(
+        () => [
+            {
+                id: 'greeting',
+                role: 'bot',
+                time: timeLabel(),
+                text: settings.greeting,
+            },
+        ],
+        [settings.greeting],
+    );
+
+    const [messages, setMessages] = useState(greet);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordSeconds, setRecordSeconds] = useState(0);
     const [toast, setToast] = useState('');
+    const [confirmingId, setConfirmingId] = useState(null);
+    const [missingFields, setMissingFields] = useState([]);
 
     const idRef = useRef(100);
-    const timersRef = useRef([]);
-    const recordTimerRef = useRef(null);
+    const sessionTokenRef = useRef(createSessionToken());
+    const recordSecondsRef = useRef(0);
     const messagesRef = useRef(null);
     const inputRef = useRef(null);
+    const recorderRef = useRef(null);
+    const streamRef = useRef(null);
+    const chunksRef = useRef([]);
+    const recordTimerRef = useRef(null);
+    const maxTimerRef = useRef(null);
+    const pendingAudioRef = useRef(null);
 
     const nextId = useCallback(() => {
         idRef.current += 1;
 
         return idRef.current;
     }, []);
-
-    const selectedService = useMemo(
-        () => orderServices.find((service) => service.id === draft.serviceId),
-        [draft.serviceId],
-    );
-
-    const scheduleReply = useCallback(
-        (items, options = {}) => {
-            setIsTyping(true);
-
-            const timer = window.setTimeout(() => {
-                setMessages((previous) => [
-                    ...previous,
-                    ...items.map((item) => ({
-                        id: nextId(),
-                        role: 'bot',
-                        time: timeLabel(),
-                        ...item,
-                    })),
-                ]);
-                setIsTyping(false);
-
-                if (options.stage) {
-                    setStage(options.stage);
-                }
-
-                if (options.draft) {
-                    setDraft((previous) => ({ ...previous, ...options.draft }));
-                }
-
-                inputRef.current?.focus();
-            }, 700);
-
-            timersRef.current.push(timer);
-        },
-        [nextId],
-    );
 
     useEffect(() => {
         const timer = window.setTimeout(() => {
@@ -161,288 +202,109 @@ export default function PelangganChatbot() {
             return undefined;
         }
 
-        const timer = window.setTimeout(() => setToast(''), 3200);
+        const timer = window.setTimeout(() => setToast(''), 4000);
 
         return () => window.clearTimeout(timer);
     }, [toast]);
 
     useEffect(
         () => () => {
-            timersRef.current.forEach((timer) => window.clearTimeout(timer));
-
             if (recordTimerRef.current) {
                 window.clearInterval(recordTimerRef.current);
             }
+
+            if (maxTimerRef.current) {
+                window.clearTimeout(maxTimerRef.current);
+            }
+
+            if (recorderRef.current?.state === 'recording') {
+                recorderRef.current.stop();
+            }
+
+            streamRef.current?.getTracks().forEach((track) => track.stop());
         },
         [],
     );
 
-    const restartConversation = useCallback(() => {
-        timersRef.current.forEach((timer) => window.clearTimeout(timer));
-        timersRef.current = [];
-
-        if (recordTimerRef.current) {
-            window.clearInterval(recordTimerRef.current);
-            recordTimerRef.current = null;
-        }
-
-        setIsRecording(false);
-        setRecordSeconds(0);
-        setIsTyping(false);
-        setInput('');
-        setDraft(emptyDraft);
-        setStage('name');
-        setMessages(initialMessages());
-        setToast('Percakapan dimulai ulang');
-    }, []);
-
-    const showSummary = (overrides = {}) => {
-        const nextDraft = { ...draft, ...overrides };
-        const service = orderServices.find(
-            (item) => item.id === nextDraft.serviceId,
-        );
-
-        if (!service || !nextDraft.quantity) {
-            scheduleReply([
-                {
-                    text: 'Sepertinya ada detail yang belum lengkap. Mari pilih layanannya lagi, ya.',
-                },
-            ]);
-
-            setStage('service');
-
-            return;
-        }
-
-        scheduleReply(
-            [
-                {
-                    text: 'Terima kasih! Aku sudah menyusun ringkasan pesananmu. Periksa detailnya dulu, ya.',
-                },
-                {
-                    summary: {
-                        serviceName: service.name,
-                        quantity: nextDraft.quantity,
-                        unit: service.unit,
-                        unitPrice: service.price,
-                        total: Math.round(service.price * nextDraft.quantity),
-                        method: nextDraft.method,
-                        address: nextDraft.address,
-                    },
-                },
-            ],
-            { stage: 'summary', draft: overrides },
-        );
-    };
-
-    const handleUserText = (text) => {
-        if (stage === 'name') {
-            const name = text.replace(/\s+/g, ' ').trim().slice(0, 60);
-
-            setDraft((previous) => ({ ...previous, name }));
-            scheduleReply(
-                [
-                    {
-                        text: `Senang berkenalan, ${name}! Layanan apa yang kamu butuhkan?`,
-                    },
-                    {
-                        text: 'Kamu bisa ketik sendiri, misalnya "cuci dan setrika 3 kg", atau pilih salah satu layanan di bawah.',
-                    },
-                ],
-                { stage: 'service' },
-            );
-
-            return;
-        }
-
-        if (stage === 'service') {
-            const service = findService(text);
-
-            if (!service) {
-                scheduleReply([
-                    {
-                        text: 'Maaf, aku belum menemukan layanan itu. Coba sebutkan salah satu layanan berikut: Cuci Kering, Cuci dan Setrika, Setrika Saja, Cuci Express, Bed Cover, atau Cuci Sepatu.',
-                    },
-                ]);
-
-                return;
-            }
-
-            const quantity = parseQuantity(text);
-
-            if (quantity && quantity >= service.min && quantity <= 100) {
-                scheduleReply(
-                    [
-                        {
-                            text: `${service.name} untuk ${quantity} ${service.unit}. Mau diantar sendiri ke outlet atau dijemput?`,
-                        },
-                    ],
-                    {
-                        stage: 'method',
-                        draft: { serviceId: service.id, quantity },
-                    },
-                );
-
-                return;
-            }
-
-            setDraft((previous) => ({ ...previous, serviceId: service.id }));
-            scheduleReply(
-                [
-                    { text: `${service.name}, pilihan yang bagus.` },
-                    {
-                        text:
-                            service.unit === 'kg'
-                                ? `Berapa perkiraan berat cucianmu? Minimal ${service.min} kg.`
-                                : `Berapa ${service.unit} yang ingin dirawat? Minimal ${service.min} ${service.unit}.`,
-                    },
-                ],
-                { stage: 'quantity', draft: { serviceId: service.id } },
-            );
-
-            return;
-        }
-
-        if (stage === 'quantity') {
-            if (!selectedService) {
-                setStage('service');
-                scheduleReply([
-                    { text: 'Layanannya belum terpilih. Layanan apa yang kamu butuhkan?' },
-                ]);
-
-                return;
-            }
-
-            const quantity = parseQuantity(text);
-
-            if (!quantity || quantity < selectedService.min) {
-                scheduleReply([
-                    {
-                        text: `Jumlahnya minimal ${selectedService.min} ${selectedService.unit}. Coba tulis lagi, ya.`,
-                    },
-                ]);
-
-                return;
-            }
-
-            if (quantity > 100) {
-                scheduleReply([
-                    {
-                        text: 'Jumlahnya terlalu besar untuk satu pesanan. Silakan hubungi outlet untuk pesanan dalam jumlah banyak.',
-                    },
-                ]);
-
-                return;
-            }
-
-            scheduleReply(
-                [
-                    {
-                        text: `Siap, ${quantity} ${selectedService.unit} ${selectedService.name}. Mau diantar sendiri ke outlet atau dijemput?`,
-                    },
-                ],
-                { stage: 'method', draft: { quantity } },
-            );
-
-            return;
-        }
-
-        if (stage === 'method') {
-            const lower = text.toLowerCase();
-            const wantsPickup =
-                /jemput|dijemput|ambil di rumah|ke rumah/.test(lower);
-            const wantsDropoff =
-                /antar sendiri|sendiri|ke outlet|datang|drop/.test(lower);
-
-            if (wantsPickup && !wantsDropoff) {
-                scheduleReply(
-                    [
-                        {
-                            text: 'Baik, cucian akan dijemput. Boleh tulis alamat lengkap penjemputan?',
-                        },
-                    ],
-                    { stage: 'address', draft: { method: 'jemput' } },
-                );
-
-                return;
-            }
-
-            if (wantsDropoff) {
-                showSummary({ method: 'antar-sendiri' });
-
-                return;
-            }
-
-            scheduleReply([
-                {
-                    text: 'Aku belum yakin dengan pilihannya. Pilih "Antar sendiri" atau "Dijemput", ya.',
-                },
-            ]);
-
-            return;
-        }
-
-        if (stage === 'address') {
-            if (text.trim().length < 8) {
-                scheduleReply([
-                    {
-                        text: 'Alamatnya terlalu singkat. Tulis nama jalan, nomor rumah, dan patokan agar petugas mudah menemukan lokasimu.',
-                    },
-                ]);
-
-                return;
-            }
-
-            showSummary({ address: text.trim().slice(0, 300) });
-
-            return;
-        }
-
-        if (stage === 'summary') {
-            if (/konfirmasi|setuju|ya|lanjut/i.test(text)) {
-                const summaryMessage = [...messages]
-                    .reverse()
-                    .find((message) => message.summary);
-
-                if (summaryMessage) {
-                    confirmOrder(summaryMessage.id);
-                }
-
-                return;
-            }
-
-            if (/ubah|ganti|edit/i.test(text)) {
-                editOrder();
-
-                return;
-            }
-
-            scheduleReply([
-                {
-                    text: 'Silakan periksa ringkasan di atas, lalu pilih "Konfirmasi pesanan" atau "Ubah data".',
-                },
-            ]);
-
-            return;
-        }
-
-        if (/pesan lagi|ulang|mulai ulang|lagi/i.test(text)) {
-            restartConversation();
-
-            return;
-        }
-
-        scheduleReply([
+    const appendBotMessage = (payload) => {
+        setMessages((previous) => [
+            ...previous,
             {
-                text: 'Kamu bisa mulai pesanan baru lewat tombol "Mulai ulang" di atas, atau lanjut ke halaman Pesan Manual.',
+                id: nextId(),
+                role: 'bot',
+                time: timeLabel(),
+                text: payload.reply,
+                summary: payload.summary,
+                handoff: payload.handoff_to_manual,
             },
         ]);
     };
 
-    const sendMessage = (value) => {
-        const text = value.trim();
+    const sendChat = async ({ message, audio, audioSeconds, audioMessageId }) => {
+        const form = new FormData();
+        const token = csrfToken();
 
-        if (!text || isTyping || isRecording) {
+        form.append('_token', token);
+        form.append('session_token', sessionTokenRef.current);
+
+        if (message) {
+            form.append('message', message);
+        }
+
+        if (audio) {
+            form.append('audio', audio, 'voice-note.wav');
+        }
+
+        if (audioSeconds) {
+            form.append('audio_seconds', String(audioSeconds));
+        }
+
+        setIsTyping(true);
+
+        try {
+            const { data } = await window.axios.post(
+                route('pelanggan.chatbot.pesan'),
+                form,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'X-CSRF-TOKEN': token,
+                        'X-XSRF-TOKEN': token,
+                    },
+                },
+            );
+
+            if (data.session_token) {
+                sessionTokenRef.current = data.session_token;
+            }
+
+            if (audioMessageId && data.transcript) {
+                setMessages((previous) =>
+                    previous.map((item) =>
+                        item.id === audioMessageId
+                            ? { ...item, transcript: data.transcript }
+                            : item,
+                    ),
+                );
+            }
+
+            setMissingFields(data.missing_fields ?? []);
+            appendBotMessage(data);
+        } catch (error) {
+            appendBotMessage({
+                reply: firstError(error),
+                handoff: true,
+            });
+        } finally {
+            setIsTyping(false);
+            inputRef.current?.focus();
+        }
+    };
+
+    const sendMessage = (value) => {
+        const text = String(value ?? '').trim();
+
+        if (!text || isTyping || isRecording || !settings.enabled) {
             return;
         }
 
@@ -451,58 +313,188 @@ export default function PelangganChatbot() {
             { id: nextId(), role: 'user', time: timeLabel(), text },
         ]);
         setInput('');
-        handleUserText(text);
+        setMissingFields([]);
+        sendChat({ message: text });
     };
 
-    const confirmOrder = (messageId) => {
-        setMessages((previous) =>
-            previous.map((message) =>
-                message.id === messageId
-                    ? { ...message, confirmed: true }
-                    : message,
-            ),
-        );
-        setDraft((previous) => ({ ...previous, confirmed: true }));
-        setStage('done');
-        setToast('Pesanan dikonfirmasi');
+    const restartConversation = () => {
+        if (recorderRef.current?.state === 'recording') {
+            recorderRef.current.stop();
+        }
 
-        scheduleReply([
-            {
-                text: `Baik, pesanan untuk ${draft.name || 'kamu'} sudah kusiapkan. Nomor pesanan akan diterbitkan setelah pesanan tersimpan di sistem.`,
-            },
-            {
-                text: 'Catatan: halaman ini masih berupa simulasi tampilan. Hubungkan chatbot ke backend agar pesanan benar-benar tersimpan dan notifikasi WhatsApp terkirim.',
-            },
-        ]);
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+
+        if (recordTimerRef.current) {
+            window.clearInterval(recordTimerRef.current);
+            recordTimerRef.current = null;
+        }
+
+        if (maxTimerRef.current) {
+            window.clearTimeout(maxTimerRef.current);
+            maxTimerRef.current = null;
+        }
+
+        sessionTokenRef.current = createSessionToken();
+        setMessages(greet());
+        setInput('');
+        setIsRecording(false);
+        setRecordSeconds(0);
+        recordSecondsRef.current = 0;
+        setMissingFields([]);
+        setIsTyping(false);
+        setToast('Percakapan dimulai ulang');
     };
 
-    const editOrder = () => {
-        setDraft((previous) => ({
-            ...previous,
-            serviceId: '',
-            quantity: null,
-            method: '',
-            address: '',
-            confirmed: false,
-        }));
-        setStage('service');
-        scheduleReply([
-            {
-                text: 'Baik, kita ubah detail pesanannya. Layanan apa yang kamu butuhkan?',
-            },
-        ]);
-    };
-
-    const startRecording = () => {
-        if (isRecording || isTyping) {
+    const confirmOrder = async (message) => {
+        if (!message.summary?.order || confirmingId) {
             return;
         }
 
-        setIsRecording(true);
-        setRecordSeconds(0);
-        recordTimerRef.current = window.setInterval(() => {
-            setRecordSeconds((seconds) => seconds + 1);
-        }, 1000);
+        setConfirmingId(message.id);
+
+        try {
+            const token = csrfToken();
+            const payload = { ...message.summary.order, _token: token };
+
+            const { data } = await window.axios.post(
+                route('pelanggan.chatbot.konfirmasi'),
+                payload,
+                {
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'X-XSRF-TOKEN': token,
+                    },
+                },
+            );
+
+            setMessages((previous) =>
+                previous.map((item) =>
+                    item.id === message.id
+                        ? { ...item, confirmed: true }
+                        : item,
+                ),
+            );
+            setToast('Pesanan dikonfirmasi');
+            router.visit(data.redirect);
+        } catch (error) {
+            setToast(firstError(error));
+        } finally {
+            setConfirmingId(null);
+        }
+    };
+
+    const editOrder = () => {
+        setInput('Ubah data pesanan: ');
+        inputRef.current?.focus();
+    };
+
+    const startRecording = async () => {
+        if (isRecording || isTyping || !settings.enabled) {
+            return;
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+            setToast('Browser ini belum mendukung rekaman suara.');
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+            });
+            const mimeType = window.MediaRecorder.isTypeSupported(
+                'audio/webm;codecs=opus',
+            )
+                ? 'audio/webm;codecs=opus'
+                : '';
+
+            const recorder = new window.MediaRecorder(
+                stream,
+                mimeType ? { mimeType } : undefined,
+            );
+
+            chunksRef.current = [];
+            streamRef.current = stream;
+            recorderRef.current = recorder;
+
+            recorder.ondataavailable = (event) => {
+                if (event.data?.size > 0) {
+                    chunksRef.current.push(event.data);
+                }
+            };
+
+            recorder.onstop = async () => {
+                if (recordTimerRef.current) {
+                    window.clearInterval(recordTimerRef.current);
+                    recordTimerRef.current = null;
+                }
+
+                if (maxTimerRef.current) {
+                    window.clearTimeout(maxTimerRef.current);
+                    maxTimerRef.current = null;
+                }
+
+                const duration = Math.max(recordSecondsRef.current, 1);
+                const blob = new Blob(chunksRef.current, {
+                    type: recorder.mimeType || 'audio/webm',
+                });
+
+                stream.getTracks().forEach((track) => track.stop());
+                streamRef.current = null;
+                recorderRef.current = null;
+                setIsRecording(false);
+                setRecordSeconds(0);
+                recordSecondsRef.current = 0;
+
+                if (blob.size === 0) {
+                    setToast('Rekaman kosong. Coba rekam lagi, ya.');
+                    return;
+                }
+
+                const messageId = nextId();
+
+                setMessages((previous) => [
+                    ...previous,
+                    {
+                        id: messageId,
+                        role: 'user',
+                        time: timeLabel(),
+                        voiceDuration: duration,
+                    },
+                ]);
+                setMissingFields([]);
+
+                const wav = await convertToWav(blob);
+                pendingAudioRef.current = messageId;
+                sendChat({
+                    audio: wav,
+                    audioSeconds: duration,
+                    audioMessageId: messageId,
+                });
+            };
+
+            recorder.start();
+            setIsRecording(true);
+            setRecordSeconds(0);
+            recordSecondsRef.current = 0;
+            recordTimerRef.current = window.setInterval(() => {
+                recordSecondsRef.current += 1;
+                setRecordSeconds(recordSecondsRef.current);
+            }, 1000);
+            maxTimerRef.current = window.setTimeout(
+                () => {
+                    if (recorderRef.current?.state === 'recording') {
+                        recorderRef.current.stop();
+                    }
+                },
+                Number(settings.maxAudioSeconds || 60) * 1000,
+            );
+        } catch {
+            setToast(
+                'Izin mikrofon ditolak. Aktifkan izin mikrofon lalu coba lagi.',
+            );
+        }
     };
 
     const finishRecording = () => {
@@ -510,64 +502,54 @@ export default function PelangganChatbot() {
             return;
         }
 
-        const duration = Math.max(recordSeconds, 1);
-
-        if (recordTimerRef.current) {
-            window.clearInterval(recordTimerRef.current);
-            recordTimerRef.current = null;
+        if (recorderRef.current?.state === 'recording') {
+            recorderRef.current.stop();
         }
-
-        setIsRecording(false);
-        setRecordSeconds(0);
-        setMessages((previous) => [
-            ...previous,
-            {
-                id: nextId(),
-                role: 'user',
-                time: timeLabel(),
-                voiceDuration: duration,
-            },
-        ]);
-        scheduleReply([
-            { text: 'Aku sudah menerima pesan suaramu.' },
-            {
-                text: 'Transkripsi suara otomatis akan aktif setelah chatbot terhubung ke Gemini. Sementara ini, ketik pesanmu agar aku bisa membantu menyusun pesanan.',
-            },
-        ]);
     };
 
     const quickReplies = useMemo(() => {
-        if (isTyping || isRecording) {
+        if (isTyping || isRecording || !settings.enabled) {
             return [];
         }
 
-        if (stage === 'service') {
+        if (missingFields.includes('intake_method')) {
+            return ['Dijemput', 'Antar sendiri'];
+        }
+
+        if (missingFields.includes('service_id')) {
+            return services
+                .slice(0, 3)
+                .map(
+                    (service) =>
+                        `${service.name} ${service.min} ${service.unit}`,
+                );
+        }
+
+        if (missingFields.includes('schedule_time')) {
+            return ['08:00-10:00', '12:00-14:00', '16:00-18:00'];
+        }
+
+        if (missingFields.includes('schedule_date')) {
+            return ['Hari ini', 'Besok'];
+        }
+
+        if (messages.length <= 1) {
             return [
                 'Cuci dan setrika 3 kg',
-                'Cuci kering 3 kg',
-                'Cuci sepatu 1 pasang',
+                'Berapa tarif cuci?',
+                'Bisa dijemput?',
             ];
         }
 
-        if (stage === 'quantity' && selectedService) {
-            const step = selectedService.unit === 'kg' ? 2 : 1;
-            const values = [selectedService.min, selectedService.min + step];
-
-            return values.map(
-                (value) => `${value} ${selectedService.unit}`,
-            );
-        }
-
-        if (stage === 'method') {
-            return ['Antar sendiri', 'Dijemput'];
-        }
-
-        if (stage === 'done') {
-            return ['Pesan lagi'];
-        }
-
         return [];
-    }, [isRecording, isTyping, selectedService, stage]);
+    }, [
+        isRecording,
+        isTyping,
+        messages.length,
+        missingFields,
+        services,
+        settings.enabled,
+    ]);
 
     const handleKeyDown = (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -625,7 +607,7 @@ export default function PelangganChatbot() {
                         </p>
                         <span className="hero-note-status">
                             <span className="status-dot"></span>
-                            Siap membantu
+                            {settings.enabled ? 'Siap membantu' : 'Sedang nonaktif'}
                         </span>
                     </aside>
 
@@ -639,10 +621,12 @@ export default function PelangganChatbot() {
                         <div className="chat-panel-header">
                             <div className="chat-bot-avatar">✧</div>
                             <div className="chat-bot-meta">
-                                <strong>Cleanora Assistant</strong>
+                                <strong>{settings.botName || 'Cleanora Assistant'}</strong>
                                 <small>
                                     <span className="status-dot"></span>
-                                    Online · Asisten laundry AI
+                                    {settings.enabled
+                                        ? 'Online · Asisten laundry AI'
+                                        : 'Offline · Gunakan Pesan Manual'}
                                 </small>
                             </div>
 
@@ -703,13 +687,17 @@ export default function PelangganChatbot() {
                                             </div>
                                         )}
 
+                                        {message.transcript && (
+                                            <p className="chat-transcript">
+                                                “{message.transcript}”
+                                            </p>
+                                        )}
+
                                         {message.summary && (
                                             <div className="assistant-summary">
                                                 <div className="assistant-summary-header">
                                                     <span>RINGKASAN PESANAN</span>
-                                                    <span
-                                                        className="assistant-summary-badge"
-                                                    >
+                                                    <span className="assistant-summary-badge">
                                                         {message.confirmed
                                                             ? 'Terkonfirmasi'
                                                             : 'Estimasi'}
@@ -720,24 +708,15 @@ export default function PelangganChatbot() {
                                                     <div className="assistant-summary-row">
                                                         <span>Layanan</span>
                                                         <strong>
-                                                            {
-                                                                message.summary
-                                                                    .serviceName
-                                                            }
+                                                            {message.summary.serviceName}
                                                         </strong>
                                                     </div>
 
                                                     <div className="assistant-summary-row">
                                                         <span>Jumlah</span>
                                                         <strong>
-                                                            {
-                                                                message.summary
-                                                                    .quantity
-                                                            }{' '}
-                                                            {
-                                                                message.summary
-                                                                    .unit
-                                                            }
+                                                            {message.summary.quantity}{' '}
+                                                            {message.summary.unit}
                                                         </strong>
                                                     </div>
 
@@ -745,58 +724,50 @@ export default function PelangganChatbot() {
                                                         <span>Metode</span>
                                                         <strong>
                                                             {methodLabel(
-                                                                message.summary
-                                                                    .method,
+                                                                message.summary.method,
                                                             )}
                                                         </strong>
                                                     </div>
 
-                                                    {message.summary
-                                                        .address && (
+                                                    {message.summary.address && (
                                                         <div className="assistant-summary-row">
                                                             <span>Alamat</span>
                                                             <strong>
-                                                                {
-                                                                    message.summary
-                                                                        .address
-                                                                }
+                                                                {message.summary.address}
                                                             </strong>
                                                         </div>
                                                     )}
 
                                                     <div className="assistant-summary-row">
+                                                        <span>Jadwal</span>
+                                                        <strong>
+                                                            {message.summary.scheduleLabel}{' '}
+                                                            ·{' '}
+                                                            {message.summary.scheduleTime}
+                                                        </strong>
+                                                    </div>
+
+                                                    <div className="assistant-summary-row">
                                                         <span>Tarif</span>
                                                         <strong>
                                                             {rupiah(
-                                                                message.summary
-                                                                    .unitPrice,
+                                                                message.summary.unitPrice,
                                                             )}
-                                                            /
-                                                            {
-                                                                message.summary
-                                                                    .unit
-                                                            }
+                                                            /{message.summary.unit}
                                                         </strong>
                                                     </div>
                                                 </div>
 
                                                 <div className="assistant-summary-total">
                                                     <div>
-                                                        <span>
-                                                            Estimasi biaya
-                                                        </span>
+                                                        <span>Estimasi biaya</span>
                                                         <strong>
-                                                            {rupiah(
-                                                                message.summary
-                                                                    .total,
-                                                            )}
+                                                            {rupiah(message.summary.total)}
                                                         </strong>
                                                     </div>
                                                     <small>
-                                                        Estimasi ini belum
-                                                        termasuk biaya
-                                                        tambahan. Harga final
-                                                        mengikuti berat aktual.
+                                                        Estimasi ini dihitung dari tarif resmi layanan.
+                                                        Harga final mengikuti berat aktual.
                                                     </small>
                                                 </div>
 
@@ -810,13 +781,16 @@ export default function PelangganChatbot() {
                                                         <button
                                                             type="button"
                                                             className="btn btn-primary"
+                                                            disabled={
+                                                                confirmingId === message.id
+                                                            }
                                                             onClick={() =>
-                                                                confirmOrder(
-                                                                    message.id,
-                                                                )
+                                                                confirmOrder(message)
                                                             }
                                                         >
-                                                            Konfirmasi pesanan
+                                                            {confirmingId === message.id
+                                                                ? 'Menyimpan...'
+                                                                : 'Konfirmasi pesanan'}
                                                         </button>
                                                         <button
                                                             type="button"
@@ -828,6 +802,15 @@ export default function PelangganChatbot() {
                                                     </div>
                                                 )}
                                             </div>
+                                        )}
+
+                                        {message.handoff && (
+                                            <Link
+                                                href={route('pelanggan.pesan')}
+                                                className="chat-manual-link"
+                                            >
+                                                Buka Pesan Manual →
+                                            </Link>
                                         )}
 
                                         <span className="chat-time">
@@ -888,7 +871,8 @@ export default function PelangganChatbot() {
                                         <i></i>
                                     </span>
                                     <span className="recording-time">
-                                        {formatDuration(recordSeconds)}
+                                        {formatDuration(recordSeconds)} /{' '}
+                                        {formatDuration(settings.maxAudioSeconds || 60)}
                                     </span>
                                     <button
                                         type="button"
@@ -904,9 +888,14 @@ export default function PelangganChatbot() {
                                         ref={inputRef}
                                         rows={1}
                                         value={input}
-                                        placeholder="Tulis pesan untuk Cleanora Assistant..."
-                                        maxLength={500}
+                                        placeholder={
+                                            settings.enabled
+                                                ? 'Tulis pesan untuk Cleanora Assistant...'
+                                                : 'Chatbot sedang nonaktif'
+                                        }
+                                        maxLength={1000}
                                         aria-label="Tulis pesan"
+                                        disabled={!settings.enabled || isTyping}
                                         onChange={(event) =>
                                             setInput(event.target.value)
                                         }
@@ -918,7 +907,7 @@ export default function PelangganChatbot() {
                                         className="chat-mic"
                                         aria-label="Rekam pesan suara"
                                         onClick={startRecording}
-                                        disabled={isTyping}
+                                        disabled={isTyping || !settings.enabled}
                                     >
                                         ♫
                                     </button>
@@ -927,7 +916,11 @@ export default function PelangganChatbot() {
                                         className="chat-send"
                                         aria-label="Kirim pesan"
                                         onClick={() => sendMessage(input)}
-                                        disabled={!input.trim() || isTyping}
+                                        disabled={
+                                            !input.trim() ||
+                                            isTyping ||
+                                            !settings.enabled
+                                        }
                                     >
                                         ↑
                                     </button>
@@ -943,9 +936,7 @@ export default function PelangganChatbot() {
 
                     <aside className="chat-side">
                         <div className="chat-side-card">
-                            <span className="section-label">
-                                CARA KERJA
-                            </span>
+                            <span className="section-label">CARA KERJA</span>
                             <h2>
                                 Tiga Langkah <em>Sederhana.</em>
                             </h2>
@@ -956,9 +947,7 @@ export default function PelangganChatbot() {
 
                             <div className="chat-steps">
                                 <div className="chat-step">
-                                    <span className="chat-step-number">
-                                        01
-                                    </span>
+                                    <span className="chat-step-number">01</span>
                                     <div>
                                         <strong>Ceritakan kebutuhanmu</strong>
                                         <p>
@@ -969,22 +958,18 @@ export default function PelangganChatbot() {
                                 </div>
 
                                 <div className="chat-step">
-                                    <span className="chat-step-number">
-                                        02
-                                    </span>
+                                    <span className="chat-step-number">02</span>
                                     <div>
                                         <strong>Lengkapi detail pesanan</strong>
                                         <p>
                                             Tentukan jumlah, metode penyerahan,
-                                            dan alamat jika memilih jemput.
+                                            jadwal, dan alamat jika memilih jemput.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="chat-step">
-                                    <span className="chat-step-number">
-                                        03
-                                    </span>
+                                    <span className="chat-step-number">03</span>
                                     <div>
                                         <strong>Periksa ringkasan</strong>
                                         <p>
@@ -1008,11 +993,10 @@ export default function PelangganChatbot() {
 
                             <ul className="chat-side-list">
                                 <li>
-                                    "Cuci dan setrika 3 kg, dijemput sore ini."
+                                    "Cuci dan setrika 3 kg, dijemput besok pagi."
                                 </li>
                                 <li>
-                                    "Cuci sepatu 2 pasang, antar sendiri ke
-                                    outlet."
+                                    "Cuci sepatu 2 pasang, antar sendiri ke outlet."
                                 </li>
                                 <li>"Bed cover 1 pcs, mau dijemput."</li>
                             </ul>

@@ -2,7 +2,6 @@ import '../../../css/pesan.css';
 
 import SmartLink from '@/Components/Cleanora/SmartLink';
 import { readOrderDraft, saveOrderDraft } from '@/Data/orderDraft';
-import { orderServices } from '@/Data/services';
 import CleanoraLayout from '@/Layouts/CleanoraLayout';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,10 +25,14 @@ const getLocalDateString = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getServiceById = (id) =>
-    orderServices.find((service) => service.id === id) ?? null;
+const getServiceById = (services, id) =>
+    services.find(
+        (service) =>
+            String(service.id) === String(id) ||
+            String(service.slug) === String(id),
+    ) ?? null;
 
-export default function PelangganPesan() {
+export default function PelangganPesan({ services = [] }) {
     const { url } = usePage();
 
     const requestedServiceId = useMemo(() => {
@@ -39,8 +42,8 @@ export default function PelangganPesan() {
 
     const savedDraft = useMemo(readOrderDraft, []);
     const initialService =
-        getServiceById(requestedServiceId) ??
-        getServiceById(savedDraft?.serviceId);
+        getServiceById(services, requestedServiceId) ??
+        getServiceById(services, savedDraft?.serviceId);
 
     const [customerName, setCustomerName] = useState(
         () => savedDraft?.customerName ?? '',
@@ -78,7 +81,7 @@ export default function PelangganPesan() {
     const minPickupDate = useMemo(() => getLocalDateString(new Date()), []);
 
     useEffect(() => {
-        const requestedService = getServiceById(requestedServiceId);
+        const requestedService = getServiceById(services, requestedServiceId);
 
         if (!requestedService) {
             return;
@@ -92,8 +95,8 @@ export default function PelangganPesan() {
     }, [requestedServiceId]);
 
     const selectedService = useMemo(
-        () => getServiceById(serviceId),
-        [serviceId],
+        () => getServiceById(services, serviceId),
+        [serviceId, services],
     );
 
     const quantityConfig = useMemo(() => {
@@ -128,7 +131,7 @@ export default function PelangganPesan() {
         : 0;
 
     const handleServiceChange = (event) => {
-        const nextService = getServiceById(event.target.value);
+        const nextService = getServiceById(services, event.target.value);
 
         setServiceId(event.target.value);
         setQuantity((current) => {
@@ -341,7 +344,7 @@ export default function PelangganPesan() {
                                             <option value="">
                                                 Pilih layanan laundry
                                             </option>
-                                            {orderServices.map((service) => (
+                                            {services.map((service) => (
                                                 <option
                                                     key={service.id}
                                                     value={service.id}
