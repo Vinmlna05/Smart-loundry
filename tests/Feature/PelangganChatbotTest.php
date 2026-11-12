@@ -659,4 +659,131 @@ class PelangganChatbotTest extends TestCase
 
         $this->assertSame(2, $calls);
     }
+
+    public function test_gemini_uses_cached_system_prompt_when_enabled(): void
+    {
+        $this->service();
+
+        config([
+            'gemini.api_key' => 'test-key',
+            'gemini.cache_enabled' => true,
+        ]);
+
+        $cachedCreates = 0;
+
+        Http::fake([
+            '*/cachedContents' => function () use (&$cachedCreates) {
+                $cachedCreates++;
+
+                return Http::response(['name' => 'cachedContents/test-cache']);
+            },
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'text' => json_encode([
+                                        'reply' => 'Halo!',
+                                        'transcript' => null,
+                                        'wants_to_order' => false,
+                                        'handoff_to_manual' => false,
+                                        'order' => [],
+                                    ]),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $token = 'test-csrf-token';
+        $user = User::factory()->create();
+
+        foreach (['session-cache-a', 'session-cache-b'] as $session) {
+            $this->withSession(['_token' => $token])
+                ->actingAs($user)
+                ->postJson('/pelanggan/chatbot/pesan', [
+                    '_token' => $token,
+                    'session_token' => $session,
+                    'message' => 'Halo',
+                ])
+                ->assertOk()
+                ->assertJsonPath('ai_status', 'ok');
+        }
+
+        $this->assertSame(1, $cachedCreates);
+
+        $generate = Http::recorded()
+            ->filter(fn (array $pair) => str_contains($pair[0]->url(), ':generateContent'))
+            ->values();
+
+        $this->assertCount(2, $generate);
+
+        $lastBody = json_decode($generate->last()[0]->body(), true);
+
+        $this->assertSame('cachedContents/test-cache', $lastBody['cachedContent']);
+        $this->assertArrayNotHasKey('systemInstruction', $lastBody);
+    }
+
+    public function test_gemini_retries_without_thinking_config_when_model_rejects_it(): void
+    {
+        $this->service();
+
+        config([
+            'gemini.api_key' => 'test-key',
+            'gemini.cache_enabled' => false,
+            'gemini.thinking_budget' => 0,
+        ]);
+
+        $bodies = [];
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => function (HttpRequest $request) use (&$bodies) {
+                $body = json_decode($request->body(), true);
+                $bodies[] = $body;
+
+                if (isset($body['generationConfig']['thinkingConfig'])) {
+                    return Http::response(['error' => ['message' => 'thinkingConfig is not supported']], 400);
+                }
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    [
+                                        'text' => json_encode([
+                                            'reply' => 'Halo!',
+                                            'transcript' => null,
+                                            'wants_to_order' => false,
+                                            'handoff_to_manual' => false,
+                                            'order' => [],
+                                        ]),
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+            },
+        ]);
+
+        $token = 'test-csrf-token';
+
+        $this->withSession(['_token' => $token])
+            ->actingAs(User::factory()->create())
+            ->postJson('/pelanggan/chatbot/pesan', [
+                '_token' => $token,
+                'session_token' => 'session-thinking-123',
+                'message' => 'Halo',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ai_status', 'ok');
+
+        $this->assertCount(2, $bodies);
+        $this->assertArrayHasKey('thinkingConfig', $bodies[0]['generationConfig']);
+        $this->assertArrayNotHasKey('thinkingConfig', $bodies[1]['generationConfig']);
+    }
 }

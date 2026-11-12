@@ -21,4 +21,12 @@ return [
 
     'max_output_tokens' => (int) env('GEMINI_MAX_OUTPUT_TOKENS', 512),
 
+    'thinking_budget' => env('GEMINI_THINKING_BUDGET') === null || env('GEMINI_THINKING_BUDGET') === ''
+        ? null
+        : (int) env('GEMINI_THINKING_BUDGET'),
+
+    'cache_enabled' => (bool) env('GEMINI_CACHE_ENABLED', false),
+
+    'cache_ttl' => (int) env('GEMINI_CACHE_TTL', 3600),
+
 ];

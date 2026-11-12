@@ -7,11 +7,8 @@ import {
     formatReportDateTime,
     formatReportRange,
     formatReportWeekday,
-    reportEarliestDateKey,
-    reportLatestDateKey,
     reportPaymentStatuses,
     reportPeriodOptions,
-    reportTransactions,
     shiftDateKey,
 } from '@/Data/adminReports';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
@@ -42,7 +39,29 @@ const methodLabel = (transaction) =>
         ? 'Belum ada metode'
         : `${transaction.paymentMethod} · ${transaction.paymentChannel}`;
 
-export default function PengusahaLaporan() {
+export default function PengusahaLaporan({ transactions = [] }) {
+    const reportTransactions = transactions;
+    const reportLatestDateKey = useMemo(
+        () =>
+            transactions.reduce(
+                (latest, transaction) =>
+                    transaction.dateKey > latest ? transaction.dateKey : latest,
+                '',
+            ),
+        [transactions],
+    );
+    const reportEarliestDateKey = useMemo(
+        () =>
+            transactions.reduce(
+                (earliest, transaction) =>
+                    !earliest || transaction.dateKey < earliest
+                        ? transaction.dateKey
+                        : earliest,
+                '',
+            ),
+        [transactions],
+    );
+
     const [period, setPeriod] = useState('all');
     const [source, setSource] = useState('all');
     const [paymentFilter, setPaymentFilter] = useState('all');
@@ -54,9 +73,10 @@ export default function PengusahaLaporan() {
     const periodDays =
         reportPeriodOptions.find((option) => option.value === period)
             ?.days ?? null;
-    const periodStartKey = periodDays
-        ? shiftDateKey(reportLatestDateKey, -(periodDays - 1))
-        : null;
+    const periodStartKey =
+        periodDays && reportLatestDateKey
+            ? shiftDateKey(reportLatestDateKey, -(periodDays - 1))
+            : null;
 
     const scopedTransactions = useMemo(
         () =>
@@ -77,7 +97,7 @@ export default function PengusahaLaporan() {
 
                 return true;
             }),
-        [periodStartKey, source],
+        [periodStartKey, reportTransactions, source],
     );
 
     const activeTransactions = useMemo(

@@ -6,6 +6,7 @@ use App\Http\Controllers\Pelanggan\PesananController;
 use App\Http\Controllers\Pelanggan\TrackingController;
 use App\Http\Controllers\Pengusaha\ChatbotSettingController;
 use App\Http\Controllers\Pengusaha\DashboardController as PengusahaDashboardController;
+use App\Http\Controllers\Pengusaha\LaporanController as PengusahaLaporanController;
 use App\Http\Controllers\Pengusaha\LayananController as PengusahaLayananController;
 use App\Http\Controllers\Pengusaha\PelangganController as PengusahaPelangganController;
 use App\Http\Controllers\Pengusaha\PembayaranController as PengusahaPembayaranController;
@@ -94,9 +95,8 @@ Route::middleware(['auth', 'role:pengusaha'])->group(function () {
     Route::get('/pengusaha/pembayaran', [PengusahaPembayaranController::class, 'index'])
         ->name('pengusaha.pembayaran');
 
-    Route::get('/pengusaha/laporan', function () {
-        return Inertia::render('Pengusaha/Laporan');
-    })->name('pengusaha.laporan');
+    Route::get('/pengusaha/laporan', [PengusahaLaporanController::class, 'index'])
+        ->name('pengusaha.laporan');
 
     Route::get('/pengusaha/chatbot', [ChatbotSettingController::class, 'index'])
         ->name('pengusaha.chatbot');

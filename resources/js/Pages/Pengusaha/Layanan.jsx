@@ -56,14 +56,6 @@ export default function PengusahaLayanan({ services = [] }) {
     const selectedService =
         serviceList.find((service) => service.id === selectedServiceId) ??
         null;
-    const satuanServices = useMemo(
-        () =>
-            serviceList.filter(
-                (service) => service.category === 'satuan',
-            ),
-        [serviceList],
-    );
-
     const summaryItems = useMemo(
         () => [
             {
@@ -599,93 +591,6 @@ export default function PengusahaLayanan({ services = [] }) {
                         {activeCount} aktif
                     </span>
                 </div>
-            </section>
-
-            <section className="admin-card admin-orders admin-item-prices">
-                <div className="admin-card-head">
-                    <div>
-                        <span className="admin-card-label">
-                            TARIF PER ITEM
-                        </span>
-                        <h2>Tarif satuan per item</h2>
-                        <p>
-                            Tarif tambahan untuk barang tertentu yang tidak
-                            dihitung berdasarkan kilogram.
-                        </p>
-                    </div>
-                    <span className="admin-orders-count">
-                        {satuanServices.length} item
-                    </span>
-                </div>
-
-                <div className="admin-table-wrap">
-                    <table className="admin-table admin-item-price-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Jenis item</th>
-                                <th scope="col">Keterangan</th>
-                                <th scope="col">Satuan</th>
-                                <th scope="col">Tarif</th>
-                                <th scope="col">
-                                    <span className="sr-only">Aksi</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {satuanServices.map((item) => (
-                                <tr key={item.id}>
-                                    <td data-label="Jenis item">
-                                        <strong className="admin-item-name">
-                                            {item.name}
-                                        </strong>
-                                    </td>
-                                    <td data-label="Keterangan">
-                                        <span className="admin-item-note">
-                                            {item.description || '-'}
-                                        </span>
-                                    </td>
-                                    <td data-label="Satuan">
-                                        <span className="admin-service-minimum">
-                                            per {item.unit}
-                                        </span>
-                                    </td>
-                                    <td data-label="Tarif">
-                                        <strong className="admin-item-price">
-                                            {formatRupiah(item.price)}
-                                        </strong>
-                                    </td>
-                                    <td data-label="Aksi">
-                                        <button
-                                            type="button"
-                                            className="admin-detail-button"
-                                            onClick={() =>
-                                                setSelectedServiceId(item.id)
-                                            }
-                                        >
-                                            Detail
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {satuanServices.length === 0 && (
-                    <div className="admin-empty">
-                        <strong>Belum ada tarif satuan.</strong>
-                        <p>
-                            Tambahkan layanan berkategori satuan untuk
-                            menampilkan tarif per item.
-                        </p>
-                    </div>
-                )}
-
-                <p className="admin-item-price-note">
-                    <AdminIcon name="alert" size={14} />
-                    Tarif item dapat berubah setelah bahan, ukuran, dan
-                    kondisi barang diperiksa petugas.
-                </p>
             </section>
 
             <p className="admin-dashboard-note">

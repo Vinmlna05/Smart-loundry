@@ -3,6 +3,7 @@
 namespace App\Services\Gemini;
 
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -22,10 +23,44 @@ class GeminiClient
             throw new GeminiException('Kunci API Gemini belum dikonfigurasi.');
         }
 
+        $cachedContent = $this->resolveCachedContent($apiKey, $systemInstruction);
+        $thinkingBudget = $this->thinkingBudget();
         $lastDecodeError = null;
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
-            $response = $this->request($apiKey, $systemInstruction, $contents);
+            $response = $this->request($apiKey, $systemInstruction, $contents, $cachedContent, $thinkingBudget);
+
+            if ($response->failed() && $response->status() === 400) {
+                $retry = false;
+
+                if ($cachedContent !== null) {
+                    $this->forgetCachedContent($systemInstruction);
+                    $cachedContent = null;
+                    $retry = true;
+                }
+
+                if ($thinkingBudget !== null) {
+                    Cache::put($this->thinkingKey(), true, now()->addDay());
+                    $thinkingBudget = null;
+                    $retry = true;
+                }
+
+                if ($retry) {
+                    $response = $this->request($apiKey, $systemInstruction, $contents, $cachedContent, $thinkingBudget);
+                }
+            }
+
+            if ($response->failed()) {
+                $reason = data_get($response->json(), 'error.message');
+                $reason = is_string($reason) && trim($reason) !== ''
+                    ? ' '.mb_substr(trim($reason), 0, 240)
+                    : '';
+
+                throw new GeminiException(
+                    'Layanan AI menolak permintaan (HTTP '.$response->status().').'.$reason,
+                );
+            }
+
             $text = $this->extractText($response);
 
             try {
@@ -54,29 +89,44 @@ class GeminiClient
         string $apiKey,
         string $systemInstruction,
         array $contents,
+        ?string $cachedContent = null,
+        ?int $thinkingBudget = null,
     ): Response {
         $url = rtrim((string) config('gemini.endpoint'), '/')
             .'/models/'.config('gemini.model').':generateContent';
 
+        $generation = [
+            'temperature' => 0.2,
+            'maxOutputTokens' => (int) config('gemini.max_output_tokens', 512),
+            'responseMimeType' => 'application/json',
+            'responseSchema' => $this->schema(),
+        ];
+
+        if ($thinkingBudget !== null) {
+            $generation['thinkingConfig'] = ['thinkingBudget' => $thinkingBudget];
+        }
+
+        $payload = [
+            'contents' => $contents,
+            'generationConfig' => $generation,
+        ];
+
+        if ($cachedContent !== null) {
+            $payload['cachedContent'] = $cachedContent;
+        } else {
+            $payload['systemInstruction'] = [
+                'parts' => [['text' => $systemInstruction]],
+            ];
+        }
+
         try {
-            $response = Http::connectTimeout(10)
+            return Http::connectTimeout(10)
                 ->timeout((int) config('gemini.timeout', 60))
                 ->withHeaders([
                     'x-goog-api-key' => $apiKey,
                     'Content-Type' => 'application/json',
                 ])
-                ->post($url, [
-                    'systemInstruction' => [
-                        'parts' => [['text' => $systemInstruction]],
-                    ],
-                    'contents' => $contents,
-                    'generationConfig' => [
-                        'temperature' => 0.2,
-                        'maxOutputTokens' => (int) config('gemini.max_output_tokens', 1024),
-                        'responseMimeType' => 'application/json',
-                        'responseSchema' => $this->schema(),
-                    ],
-                ]);
+                ->post($url, $payload);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -85,19 +135,85 @@ class GeminiClient
                 previous: $exception,
             );
         }
+    }
 
-        if ($response->failed()) {
-            $reason = data_get($response->json(), 'error.message');
-            $reason = is_string($reason) && trim($reason) !== ''
-                ? ' '.mb_substr(trim($reason), 0, 240)
-                : '';
-
-            throw new GeminiException(
-                'Layanan AI menolak permintaan (HTTP '.$response->status().').'.$reason,
-            );
+    private function resolveCachedContent(string $apiKey, string $systemInstruction): ?string
+    {
+        if (! config('gemini.cache_enabled')) {
+            return null;
         }
 
-        return $response;
+        $key = $this->cacheKey($systemInstruction);
+        $cached = Cache::get($key);
+
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+
+        if (Cache::get($key.':failed')) {
+            return null;
+        }
+
+        $ttl = max(60, (int) config('gemini.cache_ttl', 3600));
+
+        try {
+            $response = Http::connectTimeout(10)
+                ->timeout(15)
+                ->withHeaders([
+                    'x-goog-api-key' => $apiKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post(rtrim((string) config('gemini.endpoint'), '/').'/cachedContents', [
+                    'model' => 'models/'.config('gemini.model'),
+                    'systemInstruction' => [
+                        'parts' => [['text' => $systemInstruction]],
+                    ],
+                    'ttl' => $ttl.'s',
+                ]);
+        } catch (Throwable $exception) {
+            report($exception);
+            Cache::put($key.':failed', true, now()->addMinutes(30));
+
+            return null;
+        }
+
+        $name = $response->successful() ? data_get($response->json(), 'name') : null;
+
+        if (! is_string($name) || $name === '') {
+            Cache::put($key.':failed', true, now()->addMinutes(30));
+
+            return null;
+        }
+
+        Cache::put($key, $name, now()->addSeconds(max(30, $ttl - 60)));
+
+        return $name;
+    }
+
+    private function forgetCachedContent(string $systemInstruction): void
+    {
+        Cache::forget($this->cacheKey($systemInstruction));
+    }
+
+    private function cacheKey(string $systemInstruction): string
+    {
+        return 'gemini:cache:'.sha1((string) config('gemini.model').'|'.$systemInstruction);
+    }
+
+    private function thinkingKey(): string
+    {
+        return 'gemini:thinking:unsupported';
+    }
+
+    private function thinkingBudget(): ?int
+    {
+        if (Cache::get($this->thinkingKey())) {
+            return null;
+        }
+
+        $budget = config('gemini.thinking_budget');
+
+        return is_numeric($budget) ? (int) $budget : null;
     }
 
     private function extractText(Response $response): string
