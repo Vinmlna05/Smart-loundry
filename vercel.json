@@ -33,7 +33,6 @@
         "SESSION_DRIVER": "cookie",
         "SESSION_SECURE_COOKIE": "true",
         "DB_CONNECTION": "pgsql",
-        "DB_SSLMODE": "require",
-        "PGOPTIONS": "endpoint=ep-shy-rice-be7zk03u"
+        "DB_SSLMODE": "require"
     }
 }

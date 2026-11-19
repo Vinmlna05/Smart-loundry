@@ -17,41 +17,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/__diag-2f8e1c9a7b3d', function () {
-    $out = ['env' => app()->environment()];
-
-    try {
-        $config = \Illuminate\Support\Facades\DB::connection()->getConfig();
-        $out['db_config'] = [
-            'driver' => $config['driver'] ?? null,
-            'host' => $config['host'] ?? null,
-            'port' => $config['port'] ?? null,
-            'database' => $config['database'] ?? null,
-            'username' => $config['username'] ?? null,
-            'sslmode' => $config['sslmode'] ?? null,
-            'db_url_set' => filled(env('DB_URL')),
-        ];
-    } catch (\Throwable $e) {
-        $out['config_error'] = $e->getMessage();
-    }
-
-    try {
-        \Illuminate\Support\Facades\DB::select('select 1');
-        $out['db'] = 'ok';
-    } catch (\Throwable $e) {
-        $out['db_error'] = $e->getMessage();
-    }
-
-    try {
-        \Illuminate\Support\Facades\Cache::put('diag', 'ok', 60);
-        $out['cache'] = \Illuminate\Support\Facades\Cache::get('diag');
-    } catch (\Throwable $e) {
-        $out['cache_error'] = $e->getMessage();
-    }
-
-    return response()->json($out);
-});
-
 Route::get('/', function (Request $request) {
     if ($request->user()) {
         return redirect()->route($request->user()->dashboardRoute());
