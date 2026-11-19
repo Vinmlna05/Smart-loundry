@@ -2,7 +2,10 @@
     "version": 2,
     "framework": null,
     "functions": {
-        "api/index.php": { "runtime": "vercel-php@0.7.3" }
+        "api/index.php": {
+            "runtime": "vercel-php@0.7.3",
+            "maxDuration": 60
+        }
     },
     "routes": [
         { "src": "/build/(.*)", "dest": "/build/$1" },
@@ -10,5 +13,26 @@
         { "src": "/(.*)", "dest": "/api/index.php" }
     ],
     "buildCommand": "vite build",
-    "outputDirectory": "public"
+    "outputDirectory": "public",
+    "env": {
+        "APP_ENV": "production",
+        "APP_DEBUG": "false",
+        "APP_URL": "https://smart-loundry-steel.vercel.app",
+        "ASSET_URL": "https://smart-loundry-steel.vercel.app",
+        "APP_KEY": "base64:6qpyAGXDWbToyWvQFGMVHDjIFg/n06WqBB1YFaFquCM=",
+        "APP_CONFIG_CACHE": "/tmp/config.php",
+        "APP_EVENTS_CACHE": "/tmp/events.php",
+        "APP_PACKAGES_CACHE": "/tmp/packages.php",
+        "APP_ROUTES_CACHE": "/tmp/routes.php",
+        "APP_SERVICES_CACHE": "/tmp/services.php",
+        "VIEW_COMPILED_PATH": "/tmp",
+        "LOG_CHANNEL": "stderr",
+        "LOG_LEVEL": "debug",
+        "CACHE_STORE": "database",
+        "QUEUE_CONNECTION": "sync",
+        "SESSION_DRIVER": "cookie",
+        "SESSION_SECURE_COOKIE": "true",
+        "DB_CONNECTION": "pgsql",
+        "DB_SSLMODE": "require"
+    }
 }
