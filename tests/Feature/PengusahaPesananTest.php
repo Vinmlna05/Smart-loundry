@@ -99,6 +99,7 @@ class PengusahaPesananTest extends TestCase
         $this->actingAs($user)
             ->patch(route('pengusaha.pesanan.timbang', $order->order_number), [
                 'actual_weight' => 3.5,
+                'payment_method' => 'Tunai',
             ])
             ->assertRedirect();
 
@@ -108,9 +109,61 @@ class PengusahaPesananTest extends TestCase
         $this->assertSame(28000, $order->final_price);
         $this->assertSame(OrderStatus::MenungguPembayaran, $order->status);
         $this->assertSame('belum_dibayar', $order->payment_status);
+        $this->assertSame('Tunai', $order->payment_method);
+        $this->assertSame('Tunai', $order->payment_details['method']);
         $this->assertNotNull($order->invoiced_at);
         $this->assertSame(3.5, $order->items()->first()->actual_quantity);
         $this->assertSame(28000, $order->items()->first()->subtotal);
+    }
+
+    public function test_payment_method_is_required_when_weighing(): void
+    {
+        $user = User::factory()->pengusaha()->create();
+        $order = $this->makeOrder($user, [
+            'status' => OrderStatus::Diterima->value,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('pengusaha.pesanan.timbang', $order->order_number), [
+                'actual_weight' => 3.5,
+            ])
+            ->assertSessionHasErrors('payment_method');
+
+        $this->assertNull($order->fresh()->actual_weight);
+    }
+
+    public function test_transfer_invoice_requires_a_bank_account(): void
+    {
+        $user = User::factory()->pengusaha()->create();
+        $order = $this->makeOrder($user, [
+            'status' => OrderStatus::Diterima->value,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('pengusaha.pesanan.timbang', $order->order_number), [
+                'actual_weight' => 3.5,
+                'payment_method' => 'Transfer bank',
+            ])
+            ->assertSessionHasErrors('payment_method');
+
+        $this->assertNull($order->fresh()->actual_weight);
+    }
+
+    public function test_qris_invoice_requires_an_uploaded_qris_image(): void
+    {
+        $user = User::factory()->pengusaha()->create();
+        $order = $this->makeOrder($user, [
+            'status' => OrderStatus::Diterima->value,
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('pengusaha.pesanan.timbang', $order->order_number), [
+                'actual_weight' => 3.5,
+                'payment_method' => 'QRIS',
+            ])
+            ->assertSessionHasErrors('payment_method');
+
+        $this->assertNull($order->fresh()->actual_weight);
     }
 
     public function test_pengusaha_can_confirm_payment(): void

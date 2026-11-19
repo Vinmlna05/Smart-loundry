@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\OrderStatus;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Services\Business\BusinessProfile;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,9 @@ class HandleInertiaRequests extends Middleware
                 'status' => fn () => $request->session()->get('status'),
             ],
             'csrf_token' => $request->session()->token(),
+            'businessProfile' => fn (): ?array => $request->user()?->role === 'pengusaha'
+                ? app(BusinessProfile::class)->all()
+                : null,
             'navCounts' => fn (): ?array => $request->user()?->role === 'pengusaha'
                 ? [
                     'orders' => Order::query()

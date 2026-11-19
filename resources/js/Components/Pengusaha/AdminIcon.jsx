@@ -92,6 +92,7 @@ const icons = {
     ),
     chevron: <path d="m9 6 6 6-6 6" />,
     check: <path d="m5 13 4 4L19 7" />,
+    plus: <path d="M12 5v14M5 12h14" />,
     package: (
         <>
             <path d="m21 8-9-5-9 5 9 5 9-5Z" />

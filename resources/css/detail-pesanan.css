@@ -1298,3 +1298,30 @@
         margin-top: 28px;
     }
 }
+
+.cleanora-detail-page .bank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.cleanora-detail-page .bank-list .bank-box {
+    margin-top: 0;
+}
+
+.cleanora-detail-page .qris-box {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.cleanora-detail-page .qris-box img {
+    width: min(220px, 100%);
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #ffffff;
+}

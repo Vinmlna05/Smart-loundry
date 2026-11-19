@@ -2,10 +2,6 @@ import '../../css/pelanggan.css';
 import '../../css/pengusaha.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
-import {
-    loadPengusahaProfile,
-    PENGUSAHA_PROFILE_EVENT,
-} from '@/Data/pengusahaProfile';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -40,12 +36,15 @@ export default function PengusahaLayout({
     breadcrumb = 'Ringkasan',
     children,
 }) {
-    const { auth, navCounts } = usePage().props;
+    const { auth, navCounts, businessProfile: sharedProfile } =
+        usePage().props;
     const user = auth.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [businessProfile, setBusinessProfile] = useState(
-        loadPengusahaProfile,
-    );
+    const businessProfile = {
+        businessName: sharedProfile?.businessName ?? 'Cleanora Laundry',
+        operatingHours:
+            sharedProfile?.operatingHours ?? 'Setiap hari, 07.00–21.00',
+    };
     const dashboardHref = route('pengusaha.dashboard');
     const ordersHref = route('pengusaha.pesanan');
     const customersHref = route('pengusaha.pelanggan');
@@ -167,26 +166,6 @@ export default function PengusahaLayout({
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [sidebarOpen]);
-
-    useEffect(() => {
-        const handleProfileUpdate = (event) => {
-            setBusinessProfile(
-                event.detail ?? loadPengusahaProfile(),
-            );
-        };
-
-        window.addEventListener(
-            PENGUSAHA_PROFILE_EVENT,
-            handleProfileUpdate,
-        );
-
-        return () => {
-            window.removeEventListener(
-                PENGUSAHA_PROFILE_EVENT,
-                handleProfileUpdate,
-            );
-        };
-    }, []);
 
     const renderNavItem = (item) => {
         const classes = [

@@ -973,6 +973,93 @@ function PaymentDrawer({ payment, onClose, onConfirm }) {
                         </dl>
                     </section>
 
+                    {payment.paymentInstruction?.method && (
+                        <section className="admin-payment-meta">
+                            <span className="admin-card-label">
+                                INSTRUKSI PEMBAYARAN
+                            </span>
+                            <div className="admin-payment-instruction">
+                                {payment.paymentInstruction.method ===
+                                    'Transfer bank' &&
+                                    (payment.paymentAccounts?.length > 0 ? (
+                                        payment.paymentAccounts.map(
+                                            (account, index) => (
+                                                <div
+                                                    key={`${account.bankName}-${account.accountNumber}-${index}`}
+                                                    className="admin-payment-instruction-row"
+                                                >
+                                                    <span>
+                                                        {account.bankName}
+                                                    </span>
+                                                    <strong>
+                                                        {account.accountNumber}
+                                                    </strong>
+                                                    <small>
+                                                        a.n.{' '}
+                                                        {account.accountHolder}
+                                                        {account.isPrimary
+                                                            ? ' · Utama'
+                                                            : ''}
+                                                    </small>
+                                                </div>
+                                            ),
+                                        )
+                                    ) : (
+                                        <p>
+                                            Rekening tujuan belum diisi.
+                                        </p>
+                                    ))}
+
+                                {payment.paymentInstruction.method ===
+                                    'QRIS' && (
+                                    <div className="admin-payment-instruction-qris">
+                                        {payment.qrisUrl ? (
+                                            <img
+                                                src={payment.qrisUrl}
+                                                alt="Foto QRIS pembayaran"
+                                            />
+                                        ) : (
+                                            <p>
+                                                Foto QRIS belum diunggah.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {payment.paymentInstruction.method ===
+                                    'Tunai' && (
+                                    <div className="admin-payment-instruction-row">
+                                        <span>Pembayaran tunai</span>
+                                        <strong>
+                                            {
+                                                payment.paymentInstruction
+                                                    .outletAddress
+                                            }
+                                        </strong>
+                                        <small>
+                                            {
+                                                payment.paymentInstruction
+                                                    .operatingHours
+                                            }
+                                        </small>
+                                    </div>
+                                )}
+
+                                {payment.paymentWhatsappUrl && (
+                                    <a
+                                        href={payment.paymentWhatsappUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="admin-payment-reminder"
+                                    >
+                                        <AdminIcon name="message" size={14} />
+                                        Kirim instruksi via WhatsApp
+                                    </a>
+                                )}
+                            </div>
+                        </section>
+                    )}
+
                     {isBilled && (
                         <section className="admin-payment-proof">
                             <div className="admin-payment-section-head">
@@ -1073,6 +1160,7 @@ function PaymentDrawer({ payment, onClose, onConfirm }) {
                             {payment.status === 'Belum dibayar' && (
                                 <a
                                     href={
+                                        payment.paymentWhatsappUrl ??
                                         whatsappLink(payment.phone) ??
                                         '#'
                                     }

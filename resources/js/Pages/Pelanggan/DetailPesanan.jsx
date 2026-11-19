@@ -6,12 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 const rupiah = (value) => `Rp${new Intl.NumberFormat('id-ID').format(value)}`;
 
-const ACCOUNT = {
-    bank: 'BCA',
-    number: '1234567890',
-    holder: 'Cleanora Laundry',
-};
-
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
@@ -58,6 +52,21 @@ const DEMO_ORDER = {
     nextStep:
         'Unggah bukti transfer agar admin dapat memverifikasi pembayaran dan cucian segera diproses.',
     note: 'Harga final dihitung dari berat aktual setelah penimbangan. Estimasi awal tetap disimpan sebagai pembanding.',
+    payment: {
+        method: 'Transfer bank',
+        businessName: 'Cleanora Laundry',
+        accounts: [
+            {
+                bankName: 'BCA',
+                accountNumber: '1234567890',
+                accountHolder: 'Cleanora Laundry',
+                isPrimary: true,
+            },
+        ],
+        qrisUrl: null,
+        outletAddress: 'Jl. Merdeka No. 18, Bandung',
+        operatingHours: 'Setiap hari, 07.00–21.00',
+    },
 };
 
 function StatusBadge({ tone = 'primary', children }) {
@@ -259,7 +268,7 @@ function PaymentCard({ order }) {
     const [fileError, setFileError] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const [copiedNumber, setCopiedNumber] = useState('');
     const [copyStatus, setCopyStatus] = useState('');
 
     const previewUrl = useMemo(() => {
@@ -338,14 +347,14 @@ function PaymentCard({ order }) {
         setFileError('');
     };
 
-    const handleCopy = async () => {
+    const handleCopy = async (number) => {
         try {
-            await navigator.clipboard.writeText(ACCOUNT.number);
-            setCopied(true);
+            await navigator.clipboard.writeText(number);
+            setCopiedNumber(number);
             setCopyStatus('Nomor rekening disalin.');
-            window.setTimeout(() => setCopied(false), 2000);
+            window.setTimeout(() => setCopiedNumber(''), 2000);
         } catch {
-            setCopyStatus(`Salin manual: ${ACCOUNT.number}`);
+            setCopyStatus(`Salin manual: ${number}`);
         }
     };
 
@@ -373,33 +382,102 @@ function PaymentCard({ order }) {
                 </small>
             </div>
 
-            <div className="bank-box">
-                <div className="bank-head">
-                    <span>Transfer ke</span>
-                    <span className="bank-badge">{ACCOUNT.bank}</span>
-                </div>
-                <div className="bank-row">
-                    <div>
-                        <strong>{ACCOUNT.number}</strong>
-                        <small>a.n. {ACCOUNT.holder}</small>
+            {order.payment?.method === 'Transfer bank' && (
+                <div className="bank-list">
+                    <div className="bank-head">
+                        <span>Transfer ke</span>
+                        <span className="bank-badge">
+                            {order.payment.accounts?.length ?? 0} rekening
+                        </span>
                     </div>
-                    <button
-                        type="button"
-                        className="bank-copy"
-                        onClick={handleCopy}
-                    >
-                        {copied ? 'Tersalin ✓' : 'Salin'}
-                    </button>
+                    {(order.payment.accounts ?? []).map((account, index) => (
+                        <div
+                            key={`${account.bankName}-${account.accountNumber}-${index}`}
+                            className="bank-box"
+                        >
+                            <div className="bank-head">
+                                <span>
+                                    {account.bankName}
+                                    {account.isPrimary ? ' · Utama' : ''}
+                                </span>
+                            </div>
+                            <div className="bank-row">
+                                <div>
+                                    <strong>{account.accountNumber}</strong>
+                                    <small>a.n. {account.accountHolder}</small>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="bank-copy"
+                                    onClick={() =>
+                                        handleCopy(account.accountNumber)
+                                    }
+                                >
+                                    {copiedNumber === account.accountNumber
+                                        ? 'Tersalin ✓'
+                                        : 'Salin'}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {(order.payment.accounts ?? []).length === 0 && (
+                        <div className="bank-box">
+                            <small className="bank-note">
+                                Rekening tujuan belum tersedia. Hubungi
+                                outlet untuk informasi pembayaran.
+                            </small>
+                        </div>
+                    )}
                 </div>
-                <small className="bank-note">
-                    Rekening contoh untuk simulasi.
-                </small>
-                {copyStatus && (
-                    <small className="bank-copy-status" role="status">
-                        {copyStatus}
+            )}
+
+            {order.payment?.method === 'QRIS' && (
+                <div className="qris-box">
+                    <div className="bank-head">
+                        <span>Scan QRIS</span>
+                        <span className="bank-badge">QRIS</span>
+                    </div>
+                    {order.payment.qrisUrl ? (
+                        <img
+                            src={order.payment.qrisUrl}
+                            alt="QRIS pembayaran Cleanora"
+                        />
+                    ) : (
+                        <small className="bank-note">
+                            Foto QRIS belum tersedia. Hubungi outlet untuk
+                            informasi pembayaran.
+                        </small>
+                    )}
+                    <small className="bank-note">
+                        Pindai gambar QR memakai aplikasi bank atau e-wallet,
+                        lalu unggah bukti pembayaran.
                     </small>
-                )}
-            </div>
+                </div>
+            )}
+
+            {order.payment?.method === 'Tunai' && (
+                <div className="bank-box">
+                    <div className="bank-head">
+                        <span>Pembayaran tunai</span>
+                        <span className="bank-badge">Tunai</span>
+                    </div>
+                    <div className="bank-row">
+                        <div>
+                            <strong>
+                                {order.payment.outletAddress ||
+                                    'Outlet Cleanora'}
+                            </strong>
+                            <small>{order.payment.operatingHours}</small>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {copyStatus && (
+                <small className="bank-copy-status" role="status">
+                    {copyStatus}
+                </small>
+            )}
 
             <div className="payment-divider">Unggah bukti</div>
 
@@ -598,10 +676,11 @@ function DetailHero({ order }) {
     );
 }
 
-export default function DetailPesanan({ nomorPesanan }) {
+export default function DetailPesanan({ nomorPesanan, order: initialOrder = null }) {
     const normalizedNumber = String(nomorPesanan ?? '').toUpperCase();
     const order =
-        normalizedNumber === DEMO_ORDER.number ? DEMO_ORDER : null;
+        initialOrder ??
+        (normalizedNumber === DEMO_ORDER.number ? DEMO_ORDER : null);
 
     if (!order) {
         return (

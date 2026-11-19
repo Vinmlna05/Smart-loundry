@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\Business\BusinessProfile;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,10 +17,13 @@ class ProfileController extends Controller
     /**
      * Display the user's profile form.
      */
-    public function edit(Request $request): Response
+    public function edit(Request $request, BusinessProfile $profile): Response
     {
         if ($request->user()->role === 'pengusaha') {
-            return Inertia::render('Pengusaha/Profil');
+            return Inertia::render('Pengusaha/Profil', [
+                'profile' => $profile->all(),
+                'qrisUrl' => $profile->qrisUrl(),
+            ]);
         }
 
         return Inertia::render('Profile/Edit', [

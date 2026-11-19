@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Pengusaha;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\Business\BusinessProfile;
 use App\Services\Orders\OrderAdminPresenter;
 use App\Services\Orders\OrderStatusService;
+use App\Services\Payments\PaymentInstruction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
@@ -73,10 +77,31 @@ class PesananController extends Controller
         Order $order,
         Request $request,
         OrderStatusService $statuses,
+        BusinessProfile $profile,
+        PaymentInstruction $instructions,
     ): RedirectResponse {
         $data = $request->validate([
             'actual_weight' => ['required', 'numeric', 'min:0.1', 'max:50'],
+            'payment_method' => ['required', 'string', Rule::in(PaymentMethod::values())],
+        ], [
+            'payment_method.required' => 'Pilih metode pembayaran sebelum membuat nota.',
+            'payment_method.in' => 'Metode pembayaran tidak valid.',
         ]);
+
+        $method = PaymentMethod::from($data['payment_method']);
+        $business = $profile->all();
+
+        if ($method === PaymentMethod::TransferBank && $business['bankAccounts'] === []) {
+            return back()->withErrors([
+                'payment_method' => 'Lengkapi rekening tujuan di Profil usaha sebelum membuat nota transfer.',
+            ]);
+        }
+
+        if ($method === PaymentMethod::Qris && ! $business['qrisPath']) {
+            return back()->withErrors([
+                'payment_method' => 'Unggah foto QRIS di Profil usaha sebelum membuat nota QRIS.',
+            ]);
+        }
 
         if ($order->status !== OrderStatus::Diterima) {
             return back()->withErrors([
@@ -95,14 +120,17 @@ class PesananController extends Controller
 
         $weight = (float) $data['actual_weight'];
         $finalPrice = (int) round($item->unit_price * $weight);
+        $paymentDetails = $instructions->snapshot($method);
 
         try {
-            $order = DB::transaction(function () use ($order, $item, $weight, $finalPrice, $request, $statuses) {
+            $order = DB::transaction(function () use ($order, $item, $weight, $finalPrice, $method, $paymentDetails, $request, $statuses) {
                 $order->forceFill([
                     'actual_weight' => $weight,
                     'final_price' => $finalPrice,
                     'payment_status' => 'belum_dibayar',
                     'invoiced_at' => now(),
+                    'payment_method' => $method->value,
+                    'payment_details' => $paymentDetails,
                 ])->save();
 
                 $item->forceFill([
@@ -138,9 +166,10 @@ class PesananController extends Controller
         Order $order,
         Request $request,
         OrderStatusService $statuses,
+        PaymentInstruction $instructions,
     ): RedirectResponse {
         $data = $request->validate([
-            'payment_method' => ['nullable', 'string', 'in:Transfer bank,QRIS,Tunai'],
+            'payment_method' => ['nullable', 'string', Rule::in(PaymentMethod::values())],
         ]);
 
         if ($order->status !== OrderStatus::MenungguPembayaran) {
@@ -149,11 +178,19 @@ class PesananController extends Controller
             ]);
         }
 
+        $method = $data['payment_method'] ?? $order->payment_method;
+        $paymentDetails = $order->payment_details;
+
+        if ($method !== null && ($order->payment_method !== $method || ! is_array($paymentDetails))) {
+            $paymentDetails = $instructions->snapshot(PaymentMethod::from($method));
+        }
+
         try {
-            DB::transaction(function () use ($order, $data, $request, $statuses) {
+            DB::transaction(function () use ($order, $method, $paymentDetails, $request, $statuses) {
                 $order->forceFill([
                     'payment_status' => 'lunas',
-                    'payment_method' => $data['payment_method'] ?? null,
+                    'payment_method' => $method,
+                    'payment_details' => $paymentDetails,
                     'paid_at' => now(),
                     'payment_confirmed_by' => $request->user()?->id,
                 ])->save();

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\Models\Service;
+use App\Services\Orders\OrderCustomerPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -49,6 +50,29 @@ class PesananController extends Controller
         return redirect()
             ->route('pelanggan.pesan.berhasil', $order->order_number)
             ->with('status', 'Pesanan dikonfirmasi.');
+    }
+
+    /**
+     * Show the order detail, invoice, and payment instructions.
+     */
+    public function detail(
+        Request $request,
+        string $nomorPesanan,
+        OrderCustomerPresenter $presenter,
+    ): Response {
+        $order = Order::query()
+            ->with(['customer', 'items'])
+            ->where('order_number', $nomorPesanan)
+            ->where(function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id)
+                    ->orWhereHas('customer', fn ($customer) => $customer->where('user_id', $request->user()->id));
+            })
+            ->first();
+
+        return Inertia::render('Pelanggan/DetailPesanan', [
+            'nomorPesanan' => $nomorPesanan,
+            'order' => $order ? $presenter->present($order) : null,
+        ]);
     }
 
     /**

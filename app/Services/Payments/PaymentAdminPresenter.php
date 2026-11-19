@@ -35,6 +35,10 @@ class PaymentAdminPresenter
             'status' => $status,
             'method' => $method,
             'channel' => $this->channel($method),
+            'paymentInstruction' => $summary['paymentInstruction'],
+            'paymentAccounts' => $summary['paymentAccounts'],
+            'qrisUrl' => $summary['qrisUrl'],
+            'paymentWhatsappUrl' => $summary['paymentWhatsappUrl'],
             'proof' => null,
             'issuedAt' => ($order->invoiced_at ?? $order->updated_at ?? $order->created_at)
                 ?->toIso8601String(),

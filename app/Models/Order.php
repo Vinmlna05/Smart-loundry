@@ -30,6 +30,7 @@ class Order extends Model
         'payment_status',
         'invoiced_at',
         'payment_method',
+        'payment_details',
         'paid_at',
         'payment_confirmed_by',
         'notes',
@@ -45,6 +46,7 @@ class Order extends Model
             'estimated_price' => 'integer',
             'final_price' => 'integer',
             'invoiced_at' => 'datetime',
+            'payment_details' => 'array',
             'paid_at' => 'datetime',
         ];
     }

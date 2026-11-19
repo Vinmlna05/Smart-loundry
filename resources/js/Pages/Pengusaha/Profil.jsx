@@ -1,13 +1,11 @@
 import '../../../css/pengusaha-profil.css';
 
 import AdminIcon from '@/Components/Pengusaha/AdminIcon';
-import {
-    loadPengusahaProfile,
-    savePengusahaProfile,
-} from '@/Data/pengusahaProfile';
 import PengusahaLayout from '@/Layouts/PengusahaLayout';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
+
+const MAX_ACCOUNTS = 3;
 
 const initialsOf = (name) => {
     const parts = String(name ?? '')
@@ -43,6 +41,34 @@ const joinedLabel = (value) => {
     }).format(date);
 };
 
+const emptyAccount = (isPrimary = false) => ({
+    bankName: '',
+    accountNumber: '',
+    accountHolder: '',
+    isPrimary,
+});
+
+const normalizeAccounts = (accounts) => {
+    if (!Array.isArray(accounts)) {
+        return [];
+    }
+
+    const normalized = accounts
+        .slice(0, MAX_ACCOUNTS)
+        .map((account) => ({
+            bankName: account.bankName ?? '',
+            accountNumber: account.accountNumber ?? '',
+            accountHolder: account.accountHolder ?? '',
+            isPrimary: Boolean(account.isPrimary),
+        }));
+
+    if (normalized.length > 0 && !normalized.some((account) => account.isPrimary)) {
+        normalized[0].isPrimary = true;
+    }
+
+    return normalized;
+};
+
 const profileFields = [
     {
         key: 'businessName',
@@ -76,13 +102,24 @@ const profileFields = [
     },
 ];
 
-export default function PengusahaProfil() {
+export default function PengusahaProfil({ profile, qrisUrl = null }) {
     const user = usePage().props.auth.user;
-    const savedInitial = useMemo(() => loadPengusahaProfile(), []);
+    const savedInitial = useMemo(
+        () => ({
+            businessName: profile?.businessName ?? '',
+            whatsapp: profile?.whatsapp ?? '',
+            outletAddress: profile?.outletAddress ?? '',
+            operatingHours: profile?.operatingHours ?? '',
+            bankAccounts: normalizeAccounts(profile?.bankAccounts),
+        }),
+        [profile],
+    );
     const [savedProfile, setSavedProfile] = useState(savedInitial);
     const [form, setForm] = useState(savedInitial);
+    const [qrisFile, setQrisFile] = useState(null);
+    const [qrisPreview, setQrisPreview] = useState(qrisUrl);
+    const [errors, setErrors] = useState({});
     const [toast, setToast] = useState('');
-    const [error, setError] = useState('');
 
     const isDirty = JSON.stringify(form) !== JSON.stringify(savedProfile);
     const quickLinks = [
@@ -99,12 +136,18 @@ export default function PengusahaProfil() {
             icon: 'orders',
         },
         {
-            label: 'Layanan & tarif',
-            description: 'Periksa layanan dan harga aktif',
-            href: route('pengusaha.layanan'),
-            icon: 'services',
+            label: 'Pembayaran & nota',
+            description: 'Periksa pembayaran dan nota pelanggan',
+            href: route('pengusaha.pembayaran'),
+            icon: 'payments',
         },
     ];
+
+    useEffect(() => {
+        setSavedProfile(savedInitial);
+        setForm(savedInitial);
+        setQrisPreview(qrisUrl);
+    }, [savedInitial, qrisUrl]);
 
     useEffect(() => {
         if (!toast) {
@@ -116,35 +159,144 @@ export default function PengusahaProfil() {
         return () => window.clearTimeout(timeout);
     }, [toast]);
 
+    useEffect(() => {
+        if (!qrisFile) {
+            return undefined;
+        }
+
+        const preview = URL.createObjectURL(qrisFile);
+        setQrisPreview(preview);
+
+        return () => URL.revokeObjectURL(preview);
+    }, [qrisFile]);
+
     const updateField = (key, value) => {
         setForm((previous) => ({
             ...previous,
             [key]: value,
         }));
-        setError('');
+        setErrors((previous) => ({ ...previous, [key]: undefined }));
+    };
+
+    const updateAccount = (index, key, value) => {
+        setForm((previous) => ({
+            ...previous,
+            bankAccounts: previous.bankAccounts.map((account, position) =>
+                position === index ? { ...account, [key]: value } : account,
+            ),
+        }));
+        setErrors((previous) => ({ ...previous, [`bankAccounts.${index}.${key}`]: undefined }));
+    };
+
+    const addAccount = () => {
+        setForm((previous) => {
+            if (previous.bankAccounts.length >= MAX_ACCOUNTS) {
+                return previous;
+            }
+
+            return {
+                ...previous,
+                bankAccounts: [
+                    ...previous.bankAccounts,
+                    emptyAccount(previous.bankAccounts.length === 0),
+                ],
+            };
+        });
+    };
+
+    const removeAccount = (index) => {
+        setForm((previous) => {
+            const next = previous.bankAccounts.filter(
+                (_, position) => position !== index,
+            );
+
+            if (next.length > 0 && !next.some((account) => account.isPrimary)) {
+                next[0] = { ...next[0], isPrimary: true };
+            }
+
+            return { ...previous, bankAccounts: next };
+        });
+    };
+
+    const setPrimaryAccount = (index) => {
+        setForm((previous) => ({
+            ...previous,
+            bankAccounts: previous.bankAccounts.map((account, position) => ({
+                ...account,
+                isPrimary: position === index,
+            })),
+        }));
     };
 
     const submitProfile = (event) => {
         event.preventDefault();
+        setErrors({});
 
-        if (!form.businessName.trim() || !form.whatsapp.trim()) {
-            setError(
-                'Nama usaha dan nomor WhatsApp usaha perlu diisi sebelum menyimpan.',
-            );
+        router.patch(route('pengusaha.profil.update'), form, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const next = page.props.profile;
+
+                if (next) {
+                    const normalized = {
+                        businessName: next.businessName ?? '',
+                        whatsapp: next.whatsapp ?? '',
+                        outletAddress: next.outletAddress ?? '',
+                        operatingHours: next.operatingHours ?? '',
+                        bankAccounts: normalizeAccounts(next.bankAccounts),
+                    };
+
+                    setSavedProfile(normalized);
+                    setForm(normalized);
+                }
+
+                setToast(page.props.flash?.status ?? 'Profil usaha diperbarui.');
+            },
+            onError: (validationErrors) => {
+                setErrors(validationErrors);
+                setToast('Periksa kembali data profil usaha.');
+            },
+        });
+    };
+
+    const submitQris = (event) => {
+        event.preventDefault();
+
+        if (!qrisFile) {
+            setErrors((previous) => ({
+                ...previous,
+                qris: 'Pilih foto QRIS terlebih dahulu.',
+            }));
 
             return;
         }
 
-        const nextProfile = savePengusahaProfile(form);
-
-        setForm(nextProfile);
-        setSavedProfile(nextProfile);
-        setToast('Profil usaha diperbarui pada pratinjau lokal.');
+        router.post(
+            route('pengusaha.profil.qris'),
+            { qris: qrisFile },
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    setQrisFile(null);
+                    setQrisPreview(page.props.qrisUrl);
+                    setErrors((previous) => ({ ...previous, qris: undefined }));
+                    setToast(page.props.flash?.status ?? 'Foto QRIS diperbarui.');
+                },
+                onError: (validationErrors) => {
+                    setErrors((previous) => ({
+                        ...previous,
+                        ...validationErrors,
+                    }));
+                    setToast('Foto QRIS belum bisa disimpan.');
+                },
+            },
+        );
     };
 
     const resetProfile = () => {
         setForm(savedProfile);
-        setError('');
+        setErrors({});
         setToast('Perubahan dikembalikan ke profil terakhir.');
     };
 
@@ -164,15 +316,15 @@ export default function PengusahaProfil() {
                         Profil <em>usaha.</em>
                     </h1>
                     <p>
-                        Lengkapi identitas usaha dan informasi kontak yang
-                        dipakai pada operasional Cleanora.
+                        Lengkapi identitas usaha, rekening pembayaran, dan
+                        foto QRIS yang dipakai pada operasional Cleanora.
                     </p>
                 </div>
 
                 <div className="admin-head-actions">
                     <span className="admin-sample-badge">
                         <span aria-hidden="true" />
-                        Pratinjau lokal
+                        Tersimpan di database
                     </span>
                 </div>
             </div>
@@ -223,8 +375,8 @@ export default function PengusahaProfil() {
                                     <dd>{user?.email}</dd>
                                 </div>
                                 <div>
-                                    <dt>Akses</dt>
-                                    <dd>Dashboard pengusaha</dd>
+                                    <dt>Rekening aktif</dt>
+                                    <dd>{form.bankAccounts.length} rekening</dd>
                                 </div>
                                 <div>
                                     <dt>Bergabung</dt>
@@ -320,16 +472,200 @@ export default function PengusahaProfil() {
                                             }
                                         />
                                         <small>{field.hint}</small>
+                                        {errors[field.key] && (
+                                            <small className="admin-profile-field-error">
+                                                {errors[field.key]}
+                                            </small>
+                                        )}
                                     </label>
                                 ))}
                             </div>
 
-                            {error && (
+                            <div className="admin-profile-accounts">
+                                <div className="admin-profile-accounts-head">
+                                    <div>
+                                        <span className="admin-card-label">
+                                            REKENING PEMBAYARAN
+                                        </span>
+                                        <h3>Rekening tujuan transfer</h3>
+                                        <p>
+                                            Tambahkan maksimal 3 rekening.
+                                            Tandai satu rekening sebagai
+                                            utama.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="admin-button admin-button-outline"
+                                        onClick={addAccount}
+                                        disabled={
+                                            form.bankAccounts.length >=
+                                            MAX_ACCOUNTS
+                                        }
+                                    >
+                                        <AdminIcon name="plus" size={15} />
+                                        Tambah rekening
+                                    </button>
+                                </div>
+
+                                {form.bankAccounts.length === 0 && (
+                                    <div className="admin-profile-account-empty">
+                                        <strong>
+                                            Belum ada rekening tujuan.
+                                        </strong>
+                                        <p>
+                                            Tambahkan rekening agar nota
+                                            transfer bisa dikirim ke pelanggan.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="admin-profile-account-list">
+                                    {form.bankAccounts.map(
+                                        (account, index) => (
+                                            <div
+                                                key={`account-${index}`}
+                                                className={`admin-profile-account-row${
+                                                    account.isPrimary
+                                                        ? ' is-primary'
+                                                        : ''
+                                                }`}
+                                            >
+                                                <div className="admin-profile-account-top">
+                                                    <label className="admin-profile-primary">
+                                                        <input
+                                                            type="radio"
+                                                            name="primary-account"
+                                                            checked={
+                                                                account.isPrimary
+                                                            }
+                                                            onChange={() =>
+                                                                setPrimaryAccount(
+                                                                    index,
+                                                                )
+                                                            }
+                                                        />
+                                                        <span>Rekening utama</span>
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        className="admin-profile-account-remove"
+                                                        onClick={() =>
+                                                            removeAccount(
+                                                                index,
+                                                            )
+                                                        }
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                </div>
+
+                                                <div className="admin-profile-account-fields">
+                                                    <label>
+                                                        <span>Nama bank</span>
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                account.bankName
+                                                            }
+                                                            placeholder="Contoh: BCA"
+                                                            onChange={(event) =>
+                                                                updateAccount(
+                                                                    index,
+                                                                    'bankName',
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                        {errors[
+                                                            `bankAccounts.${index}.bankName`
+                                                        ] && (
+                                                            <small className="admin-profile-field-error">
+                                                                {
+                                                                    errors[
+                                                                        `bankAccounts.${index}.bankName`
+                                                                    ]
+                                                                }
+                                                            </small>
+                                                        )}
+                                                    </label>
+                                                    <label>
+                                                        <span>
+                                                            Nomor rekening
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            value={
+                                                                account.accountNumber
+                                                            }
+                                                            placeholder="Contoh: 1234567890"
+                                                            onChange={(event) =>
+                                                                updateAccount(
+                                                                    index,
+                                                                    'accountNumber',
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                        {errors[
+                                                            `bankAccounts.${index}.accountNumber`
+                                                        ] && (
+                                                            <small className="admin-profile-field-error">
+                                                                {
+                                                                    errors[
+                                                                        `bankAccounts.${index}.accountNumber`
+                                                                    ]
+                                                                }
+                                                            </small>
+                                                        )}
+                                                    </label>
+                                                    <label>
+                                                        <span>
+                                                            Atas nama
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                account.accountHolder
+                                                            }
+                                                            placeholder="Nama pemilik rekening"
+                                                            onChange={(event) =>
+                                                                updateAccount(
+                                                                    index,
+                                                                    'accountHolder',
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                        {errors[
+                                                            `bankAccounts.${index}.accountHolder`
+                                                        ] && (
+                                                            <small className="admin-profile-field-error">
+                                                                {
+                                                                    errors[
+                                                                        `bankAccounts.${index}.accountHolder`
+                                                                    ]
+                                                                }
+                                                            </small>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+
+                            {errors.bankAccounts && (
                                 <p
                                     className="admin-profile-error"
                                     role="alert"
                                 >
-                                    {error}
+                                    {errors.bankAccounts}
                                 </p>
                             )}
 
@@ -352,6 +688,88 @@ export default function PengusahaProfil() {
                                     </button>
                                 </div>
                             </div>
+                        </form>
+                    </section>
+
+                    <section className="admin-card admin-profile-form-card">
+                        <div className="admin-profile-card-head">
+                            <div>
+                                <span className="admin-card-label">
+                                    QRIS
+                                </span>
+                                <h2>Foto QR pembayaran</h2>
+                                <p>
+                                    Satu foto QRIS dipakai untuk semua nota
+                                    QRIS. Unggah foto baru untuk menggantinya.
+                                </p>
+                            </div>
+                            <span className="admin-profile-avatar">
+                                <AdminIcon name="payments" size={18} />
+                            </span>
+                        </div>
+
+                        <form
+                            className="admin-profile-qris"
+                            onSubmit={submitQris}
+                        >
+                            <div className="admin-profile-qris-preview">
+                                {qrisPreview ? (
+                                    <img
+                                        src={qrisPreview}
+                                        alt="Foto QRIS pembayaran Cleanora"
+                                    />
+                                ) : (
+                                    <div className="admin-profile-qris-empty">
+                                        <AdminIcon name="payments" size={24} />
+                                        <strong>Belum ada foto QRIS</strong>
+                                        <small>
+                                            Unggah foto QRIS agar metode QRIS
+                                            bisa dipakai saat membuat nota.
+                                        </small>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="admin-profile-qris-actions">
+                                <label className="admin-profile-qris-input">
+                                    <span>
+                                        {qrisPreview
+                                            ? 'Ganti foto QRIS'
+                                            : 'Unggah foto QRIS'}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png"
+                                        onChange={(event) =>
+                                            setQrisFile(
+                                                event.target.files?.[0] ??
+                                                    null,
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <small>
+                                    Format JPG atau PNG, maksimal 2 MB.
+                                </small>
+                                {qrisFile && (
+                                    <small>
+                                        File dipilih: {qrisFile.name}
+                                    </small>
+                                )}
+                                {errors.qris && (
+                                    <small className="admin-profile-field-error">
+                                        {errors.qris}
+                                    </small>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="admin-button admin-button-primary"
+                                disabled={!qrisFile}
+                            >
+                                Simpan foto QRIS
+                            </button>
                         </form>
                     </section>
 
@@ -396,12 +814,6 @@ export default function PengusahaProfil() {
                             </div>
                         </dl>
                     </section>
-
-                    <p className="admin-profile-note">
-                        Perubahan pada halaman ini masih berupa pratinjau
-                        tampilan dan disimpan di browser, belum masuk ke
-                        database.
-                    </p>
                 </div>
             </div>
 

@@ -72,6 +72,7 @@ export default function Navbar({ brandHref, items, user, profileHref, cta }) {
                                 'nav-link',
                                 item.active ? 'active' : '',
                                 item.mobileOnly ? 'mobile-only' : '',
+                                item.danger ? 'nav-link-danger' : '',
                             ]
                                 .filter(Boolean)
                                 .join(' ')}

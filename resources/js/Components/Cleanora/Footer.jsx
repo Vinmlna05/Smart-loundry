@@ -29,6 +29,11 @@ export default function Footer({ brandHref, description, columns }) {
                                     key={`${link.label}-${link.href}`}
                                     href={link.href}
                                     method={link.method}
+                                    className={
+                                        link.danger
+                                            ? 'footer-link-danger'
+                                            : undefined
+                                    }
                                 >
                                     {link.label}
                                 </SmartLink>

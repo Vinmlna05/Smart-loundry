@@ -131,7 +131,7 @@ const addMinutes = (time, minutes) => {
 const createProcessState = (order) => ({
     status: order.status,
     payment: order.payment,
-    paymentMethod: order.paymentMethod ?? 'Transfer bank',
+    paymentMethod: order.paymentMethod ?? null,
     actualWeight: order.actualWeight ?? null,
     finalPrice: order.finalPrice ?? null,
 });
@@ -165,6 +165,75 @@ function NotFound({ nomorPesanan }) {
     );
 }
 
+function PaymentInstructionPreview({ order, method: methodOverride }) {
+    const instruction = order.paymentInstruction ?? {};
+    const method = methodOverride ?? instruction.method ?? order.paymentMethod;
+
+    if (!method) {
+        return (
+            <div className="order-instruction-empty">
+                Metode pembayaran belum dipilih.
+            </div>
+        );
+    }
+
+    if (method === 'Transfer bank') {
+        const accounts = instruction.accounts ?? order.paymentAccounts ?? [];
+
+        return (
+            <div className="order-instruction-list">
+                {accounts.length === 0 && (
+                    <p className="order-instruction-empty">
+                        Rekening tujuan belum diisi di Profil usaha.
+                    </p>
+                )}
+                {accounts.map((account, index) => (
+                    <div
+                        key={`${account.bankName}-${account.accountNumber}-${index}`}
+                        className="order-instruction-account"
+                    >
+                        <span className="order-instruction-bank">
+                            {account.bankName}
+                        </span>
+                        <strong>{account.accountNumber}</strong>
+                        <small>a.n. {account.accountHolder}</small>
+                        {account.isPrimary && (
+                            <em className="order-instruction-primary">
+                                Utama
+                            </em>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    if (method === 'QRIS') {
+        const qrisUrl = instruction.qrisUrl ?? order.qrisUrl;
+
+        return (
+            <div className="order-instruction-qris">
+                {qrisUrl ? (
+                    <img src={qrisUrl} alt="Foto QRIS pembayaran" />
+                ) : (
+                    <p className="order-instruction-empty">
+                        Foto QRIS belum diunggah di Profil usaha.
+                    </p>
+                )}
+                <small>Pelanggan memindai foto QR ini untuk membayar.</small>
+            </div>
+        );
+    }
+
+    return (
+        <div className="order-instruction-cash">
+            <span>Pembayaran tunai di outlet</span>
+            <strong>{instruction.outletAddress || order.outlet}</strong>
+            <small>{instruction.operatingHours}</small>
+        </div>
+    );
+}
+
 function OrderDetailContent({ order }) {
     const initialProcess = createProcessState(order);
     const [process, setProcess] = useState(initialProcess);
@@ -175,6 +244,7 @@ function OrderDetailContent({ order }) {
     const [paymentMethod, setPaymentMethod] = useState(
         initialProcess.paymentMethod || 'Transfer bank',
     );
+    const [paymentMethodError, setPaymentMethodError] = useState('');
     const [cancelConfirm, setCancelConfirm] = useState(false);
     const [toast, setToast] = useState('');
 
@@ -233,6 +303,7 @@ function OrderDetailContent({ order }) {
         setProcess(next);
         setWeightInput(String(next.actualWeight ?? order.estimatedWeight ?? ''));
         setPaymentMethod(next.paymentMethod || 'Transfer bank');
+        setPaymentMethodError('');
     }, [order]);
 
     const submitAction = (routeName, payload, successMessage) => {
@@ -244,7 +315,12 @@ function OrderDetailContent({ order }) {
                 const message = Object.values(errors)[0];
 
                 if (routeName === 'pengusaha.pesanan.timbang') {
-                    setWeightError(message);
+                    setWeightError(errors.actual_weight ?? '');
+                    setPaymentMethodError(errors.payment_method ?? '');
+
+                    if (!errors.actual_weight && !errors.payment_method) {
+                        setToast(message ?? 'Berat aktual gagal disimpan.');
+                    }
                 } else if (message) {
                     setToast(message);
                 }
@@ -286,9 +362,13 @@ function OrderDetailContent({ order }) {
         }
 
         setWeightError('');
+        setPaymentMethodError('');
         submitAction(
             'pengusaha.pesanan.timbang',
-            { actual_weight: parsedWeight },
+            {
+                actual_weight: parsedWeight,
+                payment_method: paymentMethod,
+            },
             'Berat aktual disimpan dan nota dibuat.',
         );
     };
@@ -885,6 +965,43 @@ function OrderDetailContent({ order }) {
                                                 </small>
                                             )}
                                         </label>
+                                        <label className="order-field">
+                                            <span>Metode pembayaran</span>
+                                            <select
+                                                value={paymentMethod}
+                                                onChange={(event) => {
+                                                    setPaymentMethod(
+                                                        event.target.value,
+                                                    );
+                                                    setPaymentMethodError('');
+                                                }}
+                                                aria-invalid={Boolean(
+                                                    paymentMethodError,
+                                                )}
+                                            >
+                                                <option value="Transfer bank">
+                                                    Transfer bank
+                                                </option>
+                                                <option value="QRIS">
+                                                    QRIS
+                                                </option>
+                                                <option value="Tunai">
+                                                    Tunai
+                                                </option>
+                                            </select>
+                                            {paymentMethodError && (
+                                                <small
+                                                    className="order-field-error"
+                                                    role="alert"
+                                                >
+                                                    {paymentMethodError}
+                                                </small>
+                                            )}
+                                        </label>
+                                        <PaymentInstructionPreview
+                                            order={order}
+                                            method={paymentMethod}
+                                        />
                                         <div className="order-price-preview">
                                             <div>
                                                 <span>Harga per kg</span>
@@ -940,20 +1057,28 @@ function OrderDetailContent({ order }) {
                                             <span>Metode pembayaran</span>
                                             <select
                                                 value={paymentMethod}
-                                                onChange={(event) =>
+                                                onChange={(event) => {
                                                     setPaymentMethod(
                                                         event.target.value,
-                                                    )
-                                                }
+                                                    );
+                                                    setPaymentMethodError('');
+                                                }}
                                             >
                                                 <option value="Transfer bank">
                                                     Transfer bank
+                                                </option>
+                                                <option value="QRIS">
+                                                    QRIS
                                                 </option>
                                                 <option value="Tunai">
                                                     Tunai
                                                 </option>
                                             </select>
                                         </label>
+                                        <PaymentInstructionPreview
+                                            order={order}
+                                            method={paymentMethod}
+                                        />
                                         <button
                                             type="button"
                                             className="admin-button admin-button-primary"
@@ -961,17 +1086,28 @@ function OrderDetailContent({ order }) {
                                         >
                                             Konfirmasi pembayaran
                                         </button>
-                                        <button
-                                            type="button"
-                                            className="admin-button admin-button-outline"
-                                            onClick={() =>
-                                                setToast(
-                                                    'Pengingat pembayaran disiapkan untuk dikirim via WhatsApp.',
-                                                )
-                                            }
-                                        >
-                                            Kirim pengingat
-                                        </button>
+                                        {order.paymentWhatsappUrl ? (
+                                            <a
+                                                href={order.paymentWhatsappUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="admin-button admin-button-outline"
+                                            >
+                                                <AdminIcon
+                                                    name="message"
+                                                    size={15}
+                                                />
+                                                Kirim instruksi via WhatsApp
+                                            </a>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="admin-button admin-button-outline"
+                                                disabled
+                                            >
+                                                Nomor WhatsApp tidak tersedia
+                                            </button>
+                                        )}
                                     </>
                                 )}
 

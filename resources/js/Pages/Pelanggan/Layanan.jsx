@@ -97,14 +97,6 @@ export default function PelangganLayanan({ services = [] }) {
         [services],
     );
 
-    const itemPrices = useMemo(
-        () =>
-            activeServices.filter(
-                (service) => service.category === 'satuan',
-            ),
-        [activeServices],
-    );
-
     return (
         <CleanoraLayout
             title="Layanan & Tarif"
@@ -302,63 +294,6 @@ export default function PelangganLayanan({ services = [] }) {
                             informasi tarif terbaru.
                         </p>
                     )}
-                </div>
-            </section>
-
-            <section className="section item-price-section">
-                <div className="container">
-                    <div className="section-heading">
-                        <div>
-                            <span className="section-label">
-                                TARIF SATUAN
-                            </span>
-                            <h2>
-                                Perawatan <em>Per Potong.</em>
-                            </h2>
-                            <p className="section-description">
-                                Untuk pakaian atau barang tertentu yang
-                                tidak dihitung berdasarkan kilogram.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="price-table-wrapper">
-                        <table className="price-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Jenis Barang</th>
-                                    <th scope="col">Satuan</th>
-                                    <th scope="col">Tarif</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {itemPrices.map((item) => (
-                                    <tr key={item.id}>
-                                        <td>
-                                            <strong>{item.name}</strong>
-                                            <small>{item.description}</small>
-                                        </td>
-                                        <td>Per {item.unit}</td>
-                                        <td className="table-price">
-                                            {rupiah(item.price)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {itemPrices.length === 0 && (
-                        <p className="table-note">
-                            Belum ada tarif satuan yang ditampilkan.
-                        </p>
-                    )}
-
-                    <p className="table-note">
-                        * Tarif satuan dapat berubah sesuai jenis bahan,
-                        ukuran, serta tingkat perawatan.
-                    </p>
                 </div>
             </section>
 

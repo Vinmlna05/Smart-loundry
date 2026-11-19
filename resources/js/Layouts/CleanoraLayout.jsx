@@ -79,6 +79,7 @@ export default function CleanoraLayout({
                 href: logoutHref,
                 method: 'post',
                 mobileOnly: true,
+                danger: true,
             },
         ];
     }, [
@@ -194,7 +195,12 @@ export default function CleanoraLayout({
                         href: `${dashboardHref}#tentang`,
                     },
                     { label: 'Profil Saya', href: profileHref },
-                    { label: 'Keluar', href: logoutHref, method: 'post' },
+                    {
+                        label: 'Keluar',
+                        href: logoutHref,
+                        method: 'post',
+                        danger: true,
+                    },
                 ],
             },
         ];

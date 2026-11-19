@@ -4,10 +4,13 @@ namespace App\Services\Orders;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Services\Payments\PaymentInstruction;
 use App\Support\WhatsAppNumber;
 
 class OrderAdminPresenter
 {
+    public function __construct(private PaymentInstruction $instructions) {}
+
     /**
      * Build the payload used by the order table.
      *
@@ -46,6 +49,7 @@ class OrderAdminPresenter
         $finalPrice = $order->final_price !== null
             ? (int) $order->final_price
             : null;
+        $instruction = $this->instructions->forOrder($order);
 
         return [
             'id' => $order->order_number,
@@ -75,6 +79,10 @@ class OrderAdminPresenter
             'payment' => $this->paymentLabel($order),
             'paymentStatus' => $order->payment_status,
             'paymentMethod' => $order->payment_method,
+            'paymentInstruction' => $instruction,
+            'paymentAccounts' => $instruction['accounts'],
+            'qrisUrl' => $instruction['qrisUrl'],
+            'paymentWhatsappUrl' => $instruction['whatsappUrl'],
             'paidAt' => $order->paid_at?->toIso8601String(),
             'confirmedBy' => $order->paymentConfirmedBy?->name,
             'invoicedAt' => $order->invoiced_at?->toIso8601String(),

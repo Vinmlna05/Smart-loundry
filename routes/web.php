@@ -11,6 +11,7 @@ use App\Http\Controllers\Pengusaha\LayananController as PengusahaLayananControll
 use App\Http\Controllers\Pengusaha\PelangganController as PengusahaPelangganController;
 use App\Http\Controllers\Pengusaha\PembayaranController as PengusahaPembayaranController;
 use App\Http\Controllers\Pengusaha\PesananController as PengusahaPesananController;
+use App\Http\Controllers\Pengusaha\ProfilUsahaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -66,11 +67,8 @@ Route::middleware(['auth', 'role:pelanggan'])->group(function () {
         ->middleware('throttle:10,1')
         ->name('pelanggan.lacak-pesanan.cari');
 
-    Route::get('/pelanggan/pesanan/{nomorPesanan}', function (string $nomorPesanan) {
-        return Inertia::render('Pelanggan/DetailPesanan', [
-            'nomorPesanan' => $nomorPesanan,
-        ]);
-    })->name('pelanggan.pesanan.detail');
+    Route::get('/pelanggan/pesanan/{nomorPesanan}', [PesananController::class, 'detail'])
+        ->name('pelanggan.pesanan.detail');
 });
 
 Route::middleware(['auth', 'role:pengusaha'])->group(function () {
@@ -97,6 +95,12 @@ Route::middleware(['auth', 'role:pengusaha'])->group(function () {
 
     Route::get('/pengusaha/laporan', [PengusahaLaporanController::class, 'index'])
         ->name('pengusaha.laporan');
+
+    Route::patch('/pengusaha/profil', [ProfilUsahaController::class, 'update'])
+        ->name('pengusaha.profil.update');
+
+    Route::post('/pengusaha/profil/qris', [ProfilUsahaController::class, 'updateQris'])
+        ->name('pengusaha.profil.qris');
 
     Route::get('/pengusaha/chatbot', [ChatbotSettingController::class, 'index'])
         ->name('pengusaha.chatbot');

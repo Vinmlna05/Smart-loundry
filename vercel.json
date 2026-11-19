@@ -1,0 +1,37 @@
+{
+    "version": 2,
+    "framework": null,
+    "functions": {
+        "api/index.php": { "runtime": "vercel-php@0.7.3" }
+    },
+    "routes": [
+        { "src": "/build/(.*)", "dest": "/public/build/$1" },
+        { "src": "/(css|js|images|img|fonts|favicon\\.ico)(.*)", "dest": "/public/$1$2" },
+        { "src": "/(.*)", "dest": "/api/index.php" }
+    ],
+    "public": true,
+    "buildCommand": "vite build",
+    "outputDirectory": "public",
+    "env": {
+        "APP_ENV": "production",
+        "APP_DEBUG": "false",
+        "APP_URL": "https://smart-laundry-xxx.vercel.app",
+        "APP_KEY": "base64:6qpyAGXDWbToyWvQFGMVHDjIFg/n06WqBB1YFaFquCM=",
+        "APP_CONFIG_CACHE": "/tmp/config.php",
+        "APP_EVENTS_CACHE": "/tmp/events.php",
+        "APP_PACKAGES_CACHE": "/tmp/packages.php",
+        "APP_ROUTES_CACHE": "/tmp/routes.php",
+        "APP_SERVICES_CACHE": "/tmp/services.php",
+        "VIEW_COMPILED_PATH": "/tmp",
+        "CACHE_DRIVER": "array",
+        "LOG_CHANNEL": "stderr",
+        "SESSION_DRIVER": "cookie",
+        "SESSION_SECURE_COOKIE": "true",
+        "DB_CONNECTION": "pgsql",
+        "DB_HOST": "pgsql",
+        "DB_PORT": "5432",
+        "DB_DATABASE": "smart-loundry",
+        "DB_USERNAME": "postgres",
+        "DB_SSLMODE": "require"
+    }
+}

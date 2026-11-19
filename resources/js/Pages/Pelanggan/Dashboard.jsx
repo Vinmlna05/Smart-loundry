@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/react';
 
 export default function PelangganDashboard() {
     const orderHref = route('pelanggan.pesan');
+    const trackHref = route('pelanggan.lacak-pesanan');
 
     return (
         <CleanoraLayout title="Dashboard Pelanggan" active="dashboard">
@@ -41,6 +42,16 @@ export default function PelangganDashboard() {
                                 >
                                     <span className="button-icon">✧</span>
                                     Pesan dengan AI
+                                </Link>
+                            </div>
+
+                            <div className="hero-track">
+                                <span>Sudah punya pesanan?</span>
+                                <Link
+                                    href={trackHref}
+                                    className="btn btn-outline hero-track-button"
+                                >
+                                    Lacak Pesanan <span>→</span>
                                 </Link>
                             </div>
 
