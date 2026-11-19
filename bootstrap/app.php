@@ -15,8 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            $middleware->trustProxies(at: '*'),
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            
         ]);
 
         $middleware->alias([

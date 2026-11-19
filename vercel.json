@@ -5,8 +5,7 @@
         "api/index.php": { "runtime": "vercel-php@0.7.3" }
     },
     "routes": [
-        { "src": "/build/(.*)", "dest": "/public/build/$1" },
-        { "src": "/(css|js|images|img|fonts|favicon\\.ico)(.*)", "dest": "/public/$1$2" },
+        { "handle": "filesystem" },
         { "src": "/(.*)", "dest": "/api/index.php" }
     ],
     "buildCommand": "vite build",
@@ -15,6 +14,7 @@
         "APP_ENV": "production",
         "APP_DEBUG": "false",
         "APP_URL": "https://smart-laundry-steel.vercel.app",
+        "ASSET_URL": "https://smart-laundry-steel.vercel.app",
         "APP_KEY": "base64:6qpyAGXDWbToyWvQFGMVHDjIFg/n06WqBB1YFaFquCM=",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
