@@ -9,13 +9,12 @@
         { "src": "/(css|js|images|img|fonts|favicon\\.ico)(.*)", "dest": "/public/$1$2" },
         { "src": "/(.*)", "dest": "/api/index.php" }
     ],
-    "public": true,
     "buildCommand": "vite build",
     "outputDirectory": "public",
     "env": {
         "APP_ENV": "production",
         "APP_DEBUG": "false",
-        "APP_URL": "https://smart-laundry-xxx.vercel.app",
+        "APP_URL": "https://smart-laundry-steel.vercel.app",
         "APP_KEY": "base64:6qpyAGXDWbToyWvQFGMVHDjIFg/n06WqBB1YFaFquCM=",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
