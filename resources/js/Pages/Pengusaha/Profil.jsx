@@ -813,6 +813,18 @@ export default function PengusahaProfil({ profile, qrisUrl = null }) {
                                 </dd>
                             </div>
                         </dl>
+
+                        <div className="admin-profile-account-action">
+                            <Link
+                                href={route('logout')}
+                                method="post"
+                                as="button"
+                                className="admin-profile-logout"
+                            >
+                                <AdminIcon name="logout" size={16} />
+                                Keluar dari akun
+                            </Link>
+                        </div>
                     </section>
                 </div>
             </div>

@@ -87,7 +87,7 @@ class BusinessProfile
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return '/storage/'.ltrim(str_replace('\\', '/', $path), '/');
     }
 
     /**

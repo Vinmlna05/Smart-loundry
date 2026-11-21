@@ -299,7 +299,7 @@ export default function PelangganPesan({ services = [] }) {
                                             autoComplete="tel"
                                             inputMode="tel"
                                             maxLength={20}
-                                            pattern="[0-9+() .-]{9,20}"
+                                            pattern="[0-9+\(\)\s.\-]{9,20}"
                                             title="Masukkan nomor telepon yang valid"
                                             required
                                         />

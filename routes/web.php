@@ -17,6 +17,89 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::get('/__diag-order', function (Request $request) {
+    if ($request->query('token') !== 'cleanora-diag-7f3a9') {
+        abort(404);
+    }
+
+    $out = [];
+
+    try {
+        $connection = \Illuminate\Support\Facades\DB::connection();
+        $out['db'] = [
+            'database' => $connection->getDatabaseName(),
+            'host' => $connection->getConfig('host'),
+            'username' => $connection->getConfig('username'),
+            'driver' => $connection->getConfig('driver'),
+            'server' => \Illuminate\Support\Facades\DB::selectOne('select current_user as u, current_schema() as s, version() as v'),
+        ];
+        $out['tables'] = \Illuminate\Support\Facades\DB::select(
+            "select tablename from pg_tables where schemaname = 'public' order by tablename"
+        );
+        $out['services'] = \App\Models\Service::count();
+        $out['migrations'] = \Illuminate\Support\Facades\DB::table('migrations')->count();
+    } catch (\Throwable $e) {
+        $out['db_error'] = [
+            'class' => get_class($e),
+            'message' => $e->getMessage(),
+        ];
+    }
+
+    if (isset($out['db_error'])) {
+        return response()->json($out);
+    }
+
+    \Illuminate\Support\Facades\DB::beginTransaction();
+
+    try {
+        $user = \App\Models\User::where('role', 'pelanggan')->first();
+        $service = \App\Models\Service::where('is_active', true)->first();
+
+        $out['user_id'] = $user?->id;
+        $out['service_id'] = $service?->id;
+
+        if (! $user || ! $service) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $out['order_test'] = 'skipped: user/service missing';
+        } else {
+            $order = app(\App\Actions\Orders\CreateOrder::class)->handle([
+                'name' => 'Tes Diagnostik',
+                'whatsapp' => '081234567890',
+                'service_id' => $service->id,
+                'estimated_quantity' => 2,
+                'intake_method' => 'antar',
+                'delivery_method' => 'ambil',
+                'schedule_date' => now()->toDateString(),
+                'schedule_time' => '08:00-10:00',
+                'source' => 'manual',
+            ], $user);
+
+            \Illuminate\Support\Facades\DB::rollBack();
+            $out['order_test'] = 'ok: '.$order->order_number;
+        }
+    } catch (\Throwable $e) {
+        try {
+            \Illuminate\Support\Facades\DB::rollBack();
+        } catch (\Throwable $rollbackError) {
+            $out['rollback_error'] = $rollbackError->getMessage();
+        }
+
+        $out['order_error'] = [
+            'class' => get_class($e),
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ];
+
+        if ($e instanceof \Illuminate\Database\QueryException) {
+            $out['order_error']['sql'] = $e->getSql();
+            $out['order_error']['bindings'] = $e->getBindings();
+        }
+    }
+
+    return response()->json($out);
+});
+
 Route::get('/', function (Request $request) {
     if ($request->user()) {
         return redirect()->route($request->user()->dashboardRoute());

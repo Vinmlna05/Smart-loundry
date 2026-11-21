@@ -133,7 +133,7 @@ class PaymentInstruction
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return '/storage/'.ltrim(str_replace('\\', '/', $path), '/');
     }
 
     private function rupiah(int $amount): string
