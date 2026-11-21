@@ -49,53 +49,96 @@ Route::get('/__diag-order', function (Request $request) {
         return response()->json($out);
     }
 
-    \Illuminate\Support\Facades\DB::beginTransaction();
+    $out['php'] = PHP_VERSION;
 
     try {
+        $pdo = \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $out['pdo'] = [
+            'emulate_prepares' => $pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES),
+            'disable_prepares_const' => defined('PDO::PGSQL_ATTR_DISABLE_PREPARES') ? PDO::PGSQL_ATTR_DISABLE_PREPARES : null,
+        ];
+    } catch (\Throwable $e) {
+        $out['pdo_error'] = $e->getMessage();
+    }
+
+    $reset = function () {
+        while (\Illuminate\Support\Facades\DB::transactionLevel() > 0) {
+            try {
+                \Illuminate\Support\Facades\DB::rollBack();
+            } catch (\Throwable $e) {
+                break;
+            }
+        }
+    };
+
+    $attempt = function (string $label, callable $fn) use (&$out, $reset) {
+        $reset();
+
+        try {
+            $value = $fn();
+            $reset();
+            $out['tests'][$label] = ['ok' => true, 'value' => $value];
+        } catch (\Throwable $e) {
+            $reset();
+
+            $item = [
+                'ok' => false,
+                'class' => get_class($e),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ];
+
+            if ($e instanceof \Illuminate\Database\QueryException) {
+                $item['sql'] = $e->getSql();
+                $item['bindings'] = $e->getBindings();
+            }
+
+            $out['tests'][$label] = $item;
+        }
+    };
+
+    $attempt('autocommit_services_active', fn () => \App\Models\Service::where('is_active', true)->first()?->id);
+    $attempt('autocommit_users_role', fn () => \App\Models\User::where('role', 'pelanggan')->first()?->id);
+
+    $attempt('tx_single_services', function () {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+
+        return \App\Models\Service::where('is_active', true)->first()?->id;
+    });
+
+    $attempt('tx_users_then_services', function () {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        $userId = \App\Models\User::where('role', 'pelanggan')->first()?->id;
+        $serviceId = \App\Models\Service::where('is_active', true)->first()?->id;
+
+        return ['user' => $userId, 'service' => $serviceId];
+    });
+
+    $attempt('tx_create_order', function () {
         $user = \App\Models\User::where('role', 'pelanggan')->first();
         $service = \App\Models\Service::where('is_active', true)->first();
 
-        $out['user_id'] = $user?->id;
-        $out['service_id'] = $service?->id;
-
         if (! $user || ! $service) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            $out['order_test'] = 'skipped: user/service missing';
-        } else {
-            $order = app(\App\Actions\Orders\CreateOrder::class)->handle([
-                'name' => 'Tes Diagnostik',
-                'whatsapp' => '081234567890',
-                'service_id' => $service->id,
-                'estimated_quantity' => 2,
-                'intake_method' => 'antar',
-                'delivery_method' => 'ambil',
-                'schedule_date' => now()->toDateString(),
-                'schedule_time' => '08:00-10:00',
-                'source' => 'manual',
-            ], $user);
-
-            \Illuminate\Support\Facades\DB::rollBack();
-            $out['order_test'] = 'ok: '.$order->order_number;
-        }
-    } catch (\Throwable $e) {
-        try {
-            \Illuminate\Support\Facades\DB::rollBack();
-        } catch (\Throwable $rollbackError) {
-            $out['rollback_error'] = $rollbackError->getMessage();
+            return 'skipped: user/service missing';
         }
 
-        $out['order_error'] = [
-            'class' => get_class($e),
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ];
+        \Illuminate\Support\Facades\DB::beginTransaction();
 
-        if ($e instanceof \Illuminate\Database\QueryException) {
-            $out['order_error']['sql'] = $e->getSql();
-            $out['order_error']['bindings'] = $e->getBindings();
-        }
-    }
+        $order = app(\App\Actions\Orders\CreateOrder::class)->handle([
+            'name' => 'Tes Diagnostik',
+            'whatsapp' => '081234567890',
+            'service_id' => $service->id,
+            'estimated_quantity' => 2,
+            'intake_method' => 'antar',
+            'delivery_method' => 'ambil',
+            'schedule_date' => now()->toDateString(),
+            'schedule_time' => '08:00-10:00',
+            'source' => 'manual',
+        ], $user);
+
+        return $order->order_number;
+    });
 
     return response()->json($out);
 });

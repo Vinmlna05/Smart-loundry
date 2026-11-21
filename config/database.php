@@ -97,6 +97,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                (defined('PDO::PGSQL_ATTR_DISABLE_PREPARES') ? PDO::PGSQL_ATTR_DISABLE_PREPARES : 1000) => env('DB_DISABLE_PREPARES', true),
+            ]) : [],
         ],
 
         'sqlsrv' => [
